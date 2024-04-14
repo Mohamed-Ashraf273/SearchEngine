@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Search Results</h1>
+        <div id="searchResults"></div>
+    </div>
+    <script>
+        // Retrieve search query from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const query = urlParams.get('query');
+        
+        // Display search query
+        const searchResults = document.getElementById('searchResults');
+        if (query) {
+            searchResults.innerHTML = `<p>Search Query: ${query}</p>`;
+        }
+    </script>
+</body>
+</html>
