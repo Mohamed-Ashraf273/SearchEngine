@@ -28,6 +28,7 @@ public class SearchEngineServer {
                 exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
                 exchange.sendResponseHeaders(200, response.getBytes().length);
+                // This effectively sends the response back to the client.
                 OutputStream os = exchange.getResponseBody();
                 os.write(response.getBytes());
                 os.close();
