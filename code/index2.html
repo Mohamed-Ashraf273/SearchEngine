@@ -11,15 +11,25 @@
         <div id="searchResults"></div>
     </div>
     <script>
-        // Retrieve search query from URL parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        const query = urlParams.get('query');
-        
-        // Display search query
-        const searchResults = document.getElementById('searchResults');
-        if (query) {
-            searchResults.innerHTML = `<p>Search Query: ${query}</p>`;
-        }
+        document.addEventListener("DOMContentLoaded", function() {
+            // Retrieve search query from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const query = urlParams.get('query');
+            
+            // Display search query
+            const searchResults = document.getElementById('searchResults');
+            if (query) {
+                // Fetch search results from backend
+                fetch(`http://localhost:8080/search?query=${encodeURIComponent(query)}`)
+                    .then(response => response.text())
+                    .then(data => {
+                        // Display the search results from the backend
+                        searchResults.innerHTML = data;
+                    })
+                    .catch(error => console.error('Error:', error));
+                //searchResults.innerHTML = `<p>Search Query: ${query}</p>`;
+            }
+        });
     </script>
 </body>
 </html>
