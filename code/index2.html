@@ -4,14 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Results</title>
+    <style>
+        .pagination-buttons-container {
+            position: fixed;
+            bottom: 10px; 
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .pagination-button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #4CAF50; /* Green */
+            color: white;
+            transition: background-color 0.3s;
+            flex-grow: 1;
+            width: 100px; 
+        }
+
+        .pagination-button:hover {
+            background-color: #45a049;
+        }
+
+        .pagination-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .page-number {
+            display: inline-block;
+            margin: 0 10px;
+            color: #666666;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>Search Results</h1>
         <div id="searchResults"></div>
     </div>
+    <div class="pagination-buttons-container" id="paginationButtons">
+        <button id="previousButton" class="pagination-button" disabled>Previous</button>
+        <span class="page-number" id="pageNumber">Page 1</span>
+        <button id="nextButton" class="pagination-button">Next</button>
+    </div>
+    
     <script>
         document.addEventListener("DOMContentLoaded", function() {
+            let currentPage = 1;
+            const resultsPerPage = 10;
+            let totalResults = 50;
+
             // Retrieve search query from URL parameter
             const urlParams = new URLSearchParams(window.location.search);
             const query = urlParams.get('query');
@@ -29,6 +78,46 @@
                     .catch(error => console.error('Error:', error));
                 //searchResults.innerHTML = `<p>Search Query: ${query}</p>`;
             }
+
+            function displayResults(page) {
+                const searchResults = document.getElementById('searchResults');
+                searchResults.innerHTML = ''; // Clear the page before displaying new content
+                const startIndex = (page - 1) * resultsPerPage + 1;
+                const endIndex = Math.min(startIndex + resultsPerPage - 1, totalResults);
+                //searchResults.innerHTML = `Displaying results ${startIndex} - ${endIndex} of ${totalResults}`;
+
+                // I will modify this part to display actual search results
+                // For demonstration, I'm just displaying the page number
+                searchResults.innerHTML += `<p>Page ${page}</p>`;
+                document.getElementById('pageNumber').textContent = `Page ${page}`;
+            }
+
+            function updatePaginationButtons() {
+                const previousButton = document.getElementById('previousButton');
+                const nextButton = document.getElementById('nextButton');
+                previousButton.disabled = currentPage === 1;
+                nextButton.disabled = currentPage * resultsPerPage >= totalResults;
+            }
+
+            function nextPage() {
+                currentPage++;
+                displayResults(currentPage);
+                updatePaginationButtons();
+            }
+
+            function previousPage() {
+                currentPage--;
+                displayResults(currentPage);
+                updatePaginationButtons();
+            }
+
+            // Event listeners for pagination buttons
+            document.getElementById('nextButton').addEventListener('click', nextPage);
+            document.getElementById('previousButton').addEventListener('click', previousPage);
+
+            // Initial display
+            displayResults(currentPage);
+            updatePaginationButtons();
         });
     </script>
 </body>

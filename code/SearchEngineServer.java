@@ -22,7 +22,7 @@ public class SearchEngineServer {
                 String query = exchange.getRequestURI().getQuery();
                 String response = rankResults(query);
 
-                // Enable CORS by setting appropriate headers. i put these beacuse I was encountering an error (Cross-Origin Resource Sharing) policy restriction. This error occurs because the frontend (My HTML page) is hosted on one origin (e.g., null or file:// if you're loading it directly from your file system), and it's trying to make a request to a backend server (http://localhost:8080/search) hosted on a different origin (localhost:8080).
+                // Enable CORS by setting appropriate headers. i put these beacuse I was encountering an error (Cross-Origin Resource Sharing) policy restriction. This error occurs because the frontend (My HTML page) is hosted on one origin (e.g., null or file:// if I'm loading it directly from my file system), and it's trying to make a request to a backend server (http://localhost:8080/search) hosted on a different origin (localhost:8080).
                 exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
                 exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
                 exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization");
