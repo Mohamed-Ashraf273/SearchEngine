@@ -5,12 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Results</title>
     <style>
+        /* Styles for loading message */
+        .loading-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 999;
+            display: none; /* Initially hidden */
+        }
+
+        .loading-message {
+            text-align: center;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #333;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
         .pagination-buttons-container {
             position: fixed;
             bottom: 10px; 
             left: 50%;
             transform: translateX(-50%);
-            display: flex;
+            display: none; /* Initially hidden */
             justify-content: center;
             align-items: center;
         }
@@ -49,6 +87,9 @@
         <h1>Search Results</h1>
         <div id="searchResults"></div>
     </div>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-message"><div class="loading-spinner"></div></div>
+    </div>
     <div class="pagination-buttons-container" id="paginationButtons">
         <button id="previousButton" class="pagination-button" disabled>Previous</button>
         <span class="page-number" id="pageNumber">Page 1</span>
@@ -58,30 +99,48 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             let currentPage = 1;
-            const resultsPerPage = 10;
-            let totalResults = 50;
+            const resultsPerPage = 5;
+            //let totalResults = 0;
+            let arrayOfUrls = [];
 
             // Retrieve search query from URL parameter
             const urlParams = new URLSearchParams(window.location.search);
             const query = urlParams.get('query');
             
-            // Display search query
-            const searchResults = document.getElementById('searchResults');
+             // Display search query
+             const searchResults = document.getElementById('searchResults');
             if (query) {
+                // Show loading overlay
+                document.getElementById('loadingOverlay').style.display = 'block';
                 // Fetch search results from backend
                 fetch(`http://localhost:8080/search?${encodeURIComponent(query)}`)
                     .then(response => response.text())
                     .then(data => {
+                        // Hide loading overlay
+                        document.getElementById('loadingOverlay').style.display = 'none';
                         // Split the received string by newline characters
                         const urls = data.split('\n');
                         // Create HTML elements for each URL and append them to the searchResults div
+                        // totalResults = urls.length - 1;
                         urls.forEach(url => {
-                            const p = document.createElement('p');
-                            p.textContent = url;
-                            searchResults.appendChild(p);
+                            arrayOfUrls.push(url);
+                            // const p = document.createElement('p');
+                            // p.textContent = url;
+                            // searchResults.appendChild(p);
                         });
+                        // Display pagination buttons after receiving the response
+                        document.getElementById('paginationButtons').style.display = 'flex';
+                        displayResults(currentPage);
+                        nextButton.disabled = false;
+                        //previousButton.disabled = false;
+
+
                     })
-                    .catch(error => console.error('Error:', error));
+                    .catch(error => {
+                        // Hide loading overlay on error
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        console.error('Error:', error);
+                    });
                 //searchResults.innerHTML = `<p>Search Query: ${query}</p>`;
             }
 
@@ -89,13 +148,18 @@
                 const searchResults = document.getElementById('searchResults');
                 searchResults.innerHTML = ''; // Clear the page before displaying new content
                 const startIndex = (page - 1) * resultsPerPage + 1;
-                const endIndex = Math.min(startIndex + resultsPerPage - 1, totalResults);
+                const endIndex = Math.min(startIndex + resultsPerPage - 1, arrayOfUrls.length - 1);
+                for(let i = startIndex - 1; i < endIndex ;i++){
+                    const p = document.createElement('p');
+                    p.textContent = arrayOfUrls[i];
+                    searchResults.appendChild(p);
+                }
                 //searchResults.innerHTML = `Displaying results ${startIndex} - ${endIndex} of ${totalResults}`;
 
                 // I will modify this part to display actual search results
                 // For demonstration, I'm just displaying the page number
                 
-                searchResults.innerHTML += `<p>Page ${page}</p>`;
+                //searchResults.innerHTML += `<p>Page ${page}</p>`;
                     
                 document.getElementById('pageNumber').textContent = `Page ${page}`;
             }
@@ -104,7 +168,8 @@
                 const previousButton = document.getElementById('previousButton');
                 const nextButton = document.getElementById('nextButton');
                 previousButton.disabled = currentPage === 1;
-                nextButton.disabled = currentPage * resultsPerPage >= totalResults;
+                console.log("currentPage: " + currentPage + " resultsPerPage: " + resultsPerPage + " arraylength: " + arrayOfUrls.length - 1);
+                nextButton.disabled = currentPage * resultsPerPage >= (arrayOfUrls.length - 1);
             }
 
             function nextPage() {
@@ -124,7 +189,7 @@
             document.getElementById('previousButton').addEventListener('click', previousPage);
 
             // Initial display
-            displayResults(currentPage);
+            //displayResults(currentPage);
             updatePaginationButtons();
         });
     </script>

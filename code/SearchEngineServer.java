@@ -19,6 +19,7 @@ public class SearchEngineServer {
         String url;
         double TF;// normalized
         double TF_IDF;
+        double PageRank;
     }
 
     private static class word {
@@ -69,7 +70,6 @@ public class SearchEngineServer {
             System.out.println(wrds[0].docs[i].TF);
             wrds[0].docs[i].TF_IDF = calc_tfIdf(wrds[0].docs[i].url, wrds[0].DF, wrds[0].docs[i].TF);
         }
-        waitTillCalc = false;
 
         wrds[1].DF = 10 / 30;
         wrds[1].wrd = "food";
@@ -106,7 +106,8 @@ public class SearchEngineServer {
         // wrds[2].docs[i].TF_IDF = calc_tfIdf(wrds[2].docs[i].url, wrds[2].DF,
         // wrds[2].docs[i].TF);
         // }
-
+        System.out.println("finished");
+        waitTillCalc = false;
         // --------------------------------------------------------------------------------
     }
 
@@ -125,9 +126,6 @@ public class SearchEngineServer {
                 }
                 // Perform operations based on the query
                 if ("football".equals(query)) {
-                    for (int i = 0; i < 10; i++) {
-                        System.out.println(wrds[0].docs[i].TF_IDF);
-                    }
                     Ranker(wrds[0].docs);
                     for (int i = 0; i < 10; i++) {
                         finalList[i] = wrds[0].docs[i].url;
