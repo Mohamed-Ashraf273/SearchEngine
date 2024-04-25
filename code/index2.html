@@ -69,11 +69,17 @@
             const searchResults = document.getElementById('searchResults');
             if (query) {
                 // Fetch search results from backend
-                fetch(`http://localhost:8080/search?query=${encodeURIComponent(query)}`)
+                fetch(`http://localhost:8080/search?${encodeURIComponent(query)}`)
                     .then(response => response.text())
                     .then(data => {
-                        // Display the search results from the backend
-                        searchResults.innerHTML = data;
+                        // Split the received string by newline characters
+                        const urls = data.split('\n');
+                        // Create HTML elements for each URL and append them to the searchResults div
+                        urls.forEach(url => {
+                            const p = document.createElement('p');
+                            p.textContent = url;
+                            searchResults.appendChild(p);
+                        });
                     })
                     .catch(error => console.error('Error:', error));
                 //searchResults.innerHTML = `<p>Search Query: ${query}</p>`;
