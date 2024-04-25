@@ -70,7 +70,7 @@ public class SearchEngineServer {
         wrds[0].docs[7].url = "https://www.bbc.com/sport/football";
         wrds[0].docs[8].url = "https://en.wikipedia.org/wiki/Football";
         wrds[0].docs[9].url = "https://www.skysports.com/football";
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 10; i++) {
             wrds[0].docs[i].TF = calc_tf(wrds[0].wrd, wrds[0].docs[i].url);
             System.out.println(wrds[0].docs[i].TF);
             wrds[0].docs[i].TF_IDF = calc_tfIdf(wrds[0].docs[i].url, wrds[0].DF, wrds[0].docs[i].TF);
@@ -106,7 +106,7 @@ public class SearchEngineServer {
         wrds[2].docs[7].url = "https://videogamesplus.ca/";
         wrds[2].docs[8].url = "https://www.target.com/c/video-games/-/N-5xtg5";
         wrds[2].docs[9].url = "https://en.wikipedia.org/wiki/Video_game";
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 10; i++) {
             wrds[2].docs[i].TF = calc_tf(wrds[2].wrd, wrds[2].docs[i].url);
             wrds[2].docs[i].TF_IDF = calc_tfIdf(wrds[2].docs[i].url, wrds[2].DF,
                     wrds[2].docs[i].TF);
@@ -160,10 +160,15 @@ public class SearchEngineServer {
                         words_have_common_docs = new word[1];
                         words_have_common_docs[0] = new word();
                         words_have_common_docs[0] = wrds[2];
-                        // doc[] Docs = Ranker(words_have_common_docs);
-                        // for (int i = 0; i < Docs.length; i++) {
-                        // finalList[i] = Docs[i].url;
-                        // }
+                        doc[] Docs = new doc[words_have_common_docs[0].docs.length];
+                        for (int i = 0; i < Docs.length; i++) {
+                            Docs[i] = new doc();
+                        }
+                        Ranker(words_have_common_docs, Docs);
+                        finalList = new String[Docs.length];// modify the size to be the final list size
+                        for (int i = 0; i < Docs.length; i++) {
+                            finalList[i] = Docs[i].url;
+                        }
                     } else {
                         words_have_common_docs = new word[2];
                         words_have_common_docs[0] = new word();
@@ -274,7 +279,6 @@ public class SearchEngineServer {
 
     // Ranker function
     public static void Ranker(word[] words, doc[] ds) {
-        System.out.println("hello from ranker");
         for (int i = 0; i < ds.length; i++) {
             ds[i].Tf_IDF_total = words[0].docs[i].TF_IDF;
             ds[i].url = words[0].docs[i].url;

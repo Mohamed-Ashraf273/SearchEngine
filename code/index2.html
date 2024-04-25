@@ -44,27 +44,24 @@
         }
 
         .pagination-buttons-container {
-            position: fixed;
-            bottom: 10px; 
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 20px;
+            right: 20px;
             display: none; /* Initially hidden */
             justify-content: center;
             align-items: center;
         }
 
         .pagination-button {
-            padding: 10px 20px;
+            padding: 10px 20px; /* Adjust padding */
             margin: 5px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            background-color: #4CAF50; /* Green */
-            color: white;
+            background-color: #4CAF50; /* Green background for both buttons */
+            color: black;
             transition: background-color 0.3s;
-            flex-grow: 1;
-            width: 100px; 
         }
+
 
         .pagination-button:hover {
             background-color: #45a049;
@@ -80,6 +77,33 @@
             margin: 0 10px;
             color: #666666;
         }
+
+        /* Custom styles for search results */
+        .result-container {
+            background-color: #f2f2f2;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            width: 50%; /* Adjust as needed */
+            margin-left: 10px; /* Align to the left */
+        }
+
+        .result-container a {
+            text-decoration: none;
+            display: block; /* Display the URL on a new line */
+            margin-top: 5px; /* Add some space between the site name and the URL */
+        }
+
+        .site-name {
+            font-size: 20px;
+            color: blue;
+            font-weight: bold;
+        }
+
+        .url-link {
+            font-size: 14px;
+            color: black;
+        }
     </style>
 </head>
 <body>
@@ -91,24 +115,23 @@
         <div class="loading-message"><div class="loading-spinner"></div></div>
     </div>
     <div class="pagination-buttons-container" id="paginationButtons">
-        <button id="previousButton" class="pagination-button" disabled>Previous</button>
+        <button id="previousButton" class="pagination-button" disabled><</button>
         <span class="page-number" id="pageNumber">Page 1</span>
-        <button id="nextButton" class="pagination-button">Next</button>
+        <button id="nextButton" class="pagination-button">></button>
     </div>
     
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             let currentPage = 1;
-            const resultsPerPage = 5;
-            //let totalResults = 0;
+            const resultsPerPage = 10;
             let arrayOfUrls = [];
 
             // Retrieve search query from URL parameter
             const urlParams = new URLSearchParams(window.location.search);
             const query = urlParams.get('query');
             
-             // Display search query
-             const searchResults = document.getElementById('searchResults');
+            // Display search query
+            const searchResults = document.getElementById('searchResults');
             if (query) {
                 // Show loading overlay
                 document.getElementById('loadingOverlay').style.display = 'block';
@@ -121,49 +144,51 @@
                         // Split the received string by newline characters
                         const urls = data.split('\n');
                         // Create HTML elements for each URL and append them to the searchResults div
-                        // totalResults = urls.length - 1;
                         urls.forEach(url => {
                             arrayOfUrls.push(url);
-                            // const p = document.createElement('p');
-                            // p.textContent = url;
-                            // searchResults.appendChild(p);
                         });
                         // Display pagination buttons after receiving the response
-                        console.log(arrayOfUrls.length);
                         document.getElementById('paginationButtons').style.display = 'flex';
                         displayResults(currentPage);
-                        if(arrayOfUrls.length-1>resultsPerPage){
+                        if(arrayOfUrls.length - 1 > resultsPerPage){
                             nextButton.disabled = false;
                         }
-                        //previousButton.disabled = false;
-
-
                     })
                     .catch(error => {
                         // Hide loading overlay on error
                         document.getElementById('loadingOverlay').style.display = 'none';
                         console.error('Error:', error);
                     });
-                //searchResults.innerHTML = `<p>Search Query: ${query}</p>`;
             }
 
             function displayResults(page) {
                 const searchResults = document.getElementById('searchResults');
                 searchResults.innerHTML = ''; // Clear the page before displaying new content
-                const startIndex = (page - 1) * resultsPerPage + 1;
-                const endIndex = Math.min(startIndex + resultsPerPage - 1, arrayOfUrls.length - 1);
-                for(let i = startIndex - 1; i < endIndex ;i++){
-                    const p = document.createElement('p');
-                    p.textContent = arrayOfUrls[i];
-                    searchResults.appendChild(p);
-                }
-                //searchResults.innerHTML = `Displaying results ${startIndex} - ${endIndex} of ${totalResults}`;
+                const startIndex = (page - 1) * resultsPerPage;
+                const endIndex = Math.min(startIndex + resultsPerPage, arrayOfUrls.length - 1);
+                for(let i = startIndex; i < endIndex ;i++){
+                    const url = arrayOfUrls[i];
+                    const urlParts = url.split("/");
+                    const siteName = urlParts[2];
+                    const siteLink = urlParts[0] + "//" + urlParts[2];
 
-                // I will modify this part to display actual search results
-                // For demonstration, I'm just displaying the page number
-                
-                //searchResults.innerHTML += `<p>Page ${page}</p>`;
-                    
+                    const container = document.createElement('div');
+                    container.classList.add('result-container');
+
+                    const siteNameElement = document.createElement('a');
+                    siteNameElement.textContent = siteName;
+                    siteNameElement.href = url;
+                    siteNameElement.classList.add('site-name');
+                    container.appendChild(siteNameElement);
+
+                    const urlElement = document.createElement('a');
+                    urlElement.textContent = url;
+                    urlElement.href = url;
+                    urlElement.classList.add('url-link');
+                    container.appendChild(urlElement);
+
+                    searchResults.appendChild(container);
+                }
                 document.getElementById('pageNumber').textContent = `Page ${page}`;
             }
 
@@ -171,7 +196,7 @@
                 const previousButton = document.getElementById('previousButton');
                 const nextButton = document.getElementById('nextButton');
                 previousButton.disabled = currentPage === 1;
-                nextButton.disabled = currentPage * resultsPerPage >= (arrayOfUrls.length - 1);
+                nextButton.disabled = currentPage * resultsPerPage >= arrayOfUrls.length - 1;
             }
 
             function nextPage() {
@@ -191,7 +216,6 @@
             document.getElementById('previousButton').addEventListener('click', previousPage);
 
             // Initial display
-            //displayResults(currentPage);
             updatePaginationButtons();
         });
     </script>
