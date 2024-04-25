@@ -129,9 +129,12 @@
                             // searchResults.appendChild(p);
                         });
                         // Display pagination buttons after receiving the response
+                        console.log(arrayOfUrls.length);
                         document.getElementById('paginationButtons').style.display = 'flex';
                         displayResults(currentPage);
-                        nextButton.disabled = false;
+                        if(arrayOfUrls.length-1>resultsPerPage){
+                            nextButton.disabled = false;
+                        }
                         //previousButton.disabled = false;
 
 
@@ -168,7 +171,6 @@
                 const previousButton = document.getElementById('previousButton');
                 const nextButton = document.getElementById('nextButton');
                 previousButton.disabled = currentPage === 1;
-                console.log("currentPage: " + currentPage + " resultsPerPage: " + resultsPerPage + " arraylength: " + arrayOfUrls.length - 1);
                 nextButton.disabled = currentPage * resultsPerPage >= (arrayOfUrls.length - 1);
             }
 
