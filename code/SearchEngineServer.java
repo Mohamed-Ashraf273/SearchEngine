@@ -40,6 +40,8 @@ public class SearchEngineServer {
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
         server.createContext("/search", new SearchHandler());
+        server.createContext("/getPara", new getParaHandler());
+
         server.setExecutor(null);
         server.start();
         System.out.println("Server started on port 8080");
@@ -82,25 +84,25 @@ public class SearchEngineServer {
         wrds[0].wrd = "football";
         wrds[0].docs[0].url = "https://www.bbc.com/sport/football";
         wrds[0].docs[1].url = "https://www.bbc.com/business";
-        wrds[0].docs[2].url = "https://poki.com/en/american-football";
-        wrds[0].docs[3].url = "https://www.theguardian.com/football";
-        wrds[0].docs[4].url = "https://www.britannica.com/sports/football-soccer";
+        wrds[0].docs[2].url = "https://www.skysports.com/football";
+        wrds[0].docs[3].url = "https://www.facebook.com/BBCSPORT";
+        wrds[0].docs[4].url = "https://www.bbc.com/weather";
         wrds[0].docs[5].url = "https://www.aljazeera.com/sports/liveblog/2024/4/23/live-arsenal-vs-chelsea-premier-league-football";
-        wrds[0].docs[6].url = "https://www.nfl.com/";
-        wrds[0].docs[7].url = "https://www.bbc.com/sport/football";
-        wrds[0].docs[8].url = "https://en.wikipedia.org/wiki/Football";
-        wrds[0].docs[9].url = "https://www.skysports.com/football";
+        wrds[0].docs[6].url = "https://en.wikipedia.org/wiki/Association_football";
+        wrds[0].docs[7].url = "https://www.goal.com/en/live-scores";
+        wrds[0].docs[8].url = "https://onefootball.com/";
+        wrds[0].docs[9].url = "https://www.bbc.com/sport/football/scores-fixtures";
         for (int i = 0; i < 10; i++) {
             wrds[0].docs[i].TF = calc_tf(wrds[0].wrd, wrds[0].docs[i].url);
-            System.out.println(wrds[0].docs[i].TF);
+            // System.out.println(wrds[0].docs[i].TF);
             wrds[0].docs[i].TF_IDF = calc_tfIdf(wrds[0].docs[i].url, wrds[0].DF,
                     wrds[0].docs[i].TF);
         }
 
-        wrds[1].DF = 10 / 30;
+        wrds[1].DF = 10.0 / 30.0;
         wrds[1].wrd = "food";
         wrds[1].docs[0].url = "https://en.wikipedia.org/wiki/Food";
-        wrds[1].docs[1].url = "https://www.facebook.com/BBCSPORT";
+        wrds[1].docs[1].url = "https://www.fao.org/home/en";
         wrds[1].docs[2].url = "https://www.food.com/";
         wrds[1].docs[3].url = "https://www.nationalgeographic.org/article/food/";
         wrds[1].docs[4].url = "https://www.foodnetwork.com/";
@@ -111,15 +113,16 @@ public class SearchEngineServer {
         wrds[1].docs[9].url = "https://www.fda.gov/food";
         for (int i = 0; i < 10; i++) {
             wrds[1].docs[i].TF = calc_tf(wrds[1].wrd, wrds[1].docs[i].url);
+            // System.out.println(wrds[0].docs[i].TF);
             wrds[1].docs[i].TF_IDF = calc_tfIdf(wrds[1].docs[i].url, wrds[1].DF,
                     wrds[1].docs[i].TF);
         }
 
-        wrds[2].DF = 10 / 30;
+        wrds[2].DF = 10.0 / 30.0;
         wrds[2].wrd = "games";
-        wrds[2].docs[0].url = "https://poki.com/en/american-football";
-        wrds[2].docs[1].url = "https://www.crazygames.com/t/soccer";
-        wrds[2].docs[2].url = "https://playfootball.games/";
+        wrds[2].docs[0].url = "https://en.wikipedia.org/wiki/Video_game";
+        wrds[2].docs[1].url = "https://www.amazon.com/computer-video-games-hardware-accessories/b?ie=UTF8&node=468642";
+        wrds[2].docs[2].url = "https://www.metacritic.com/browse/game/";
         wrds[2].docs[3].url = "https://www.gamespot.com/";
         wrds[2].docs[4].url = "https://www.wired.com/tag/video-games/";
         wrds[2].docs[5].url = "https://www.metacritic.com/browse/game/all/all/current-year/";
@@ -147,6 +150,75 @@ public class SearchEngineServer {
         System.out.println("finished");
         waitTillCalc = false;
         // --------------------------------------------------------------------------------
+    }
+
+    static class getParaHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery(); // query words from the user in a string form
+                URL url = new URL(query);
+                // Open a connection to the URL
+                URLConnection urlcon = url.openConnection();
+
+                InputStream stream = urlcon.getInputStream();
+                BufferedReader in = new BufferedReader(new InputStreamReader(stream));
+
+                // Read the HTML content line by line
+                StringBuilder htmlContent = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    htmlContent.append(inputLine);
+                }
+                // Close the input stream
+                in.close();
+                // Getting paragraphs in the page
+                String html = htmlContent.toString();
+                Pattern pattern = Pattern.compile("<p>(.*?)</p>");
+                Matcher matcher = pattern.matcher(html);
+                int max = 0;
+                String maxPara = "";
+                while (matcher.find()) {
+                    String paragraph = matcher.group(1);
+                    // Remove any HTML tags from the paragraph
+                    paragraph = paragraph.replaceAll("<[^>]*>", "");
+                    // Ensure the paragraph contains words
+                    if (!paragraph.trim().isEmpty()) {
+                        // do something with para
+                        if (paragraph.length() > max) {
+                            max = paragraph.length();
+                            maxPara = paragraph;
+                        }
+                    }
+                }
+
+                // Send response to the frontend
+                try {
+                    // Set the response status code to 200 (OK)
+                    // Enable CORS by setting appropriate headers
+                    exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+                    exchange.getResponseHeaders().set("Access-Control-Allow-Methods",
+                            "GET, POST, PUT, DELETE, OPTIONS");
+                    exchange.getResponseHeaders().set("Access-Control-Allow-Headers",
+                            "Content-Type, Authorization");
+                    exchange.sendResponseHeaders(200, 0);
+
+                    // Get the response body OutputStream
+                    OutputStream os = exchange.getResponseBody();
+
+                    // Write the max paragraph to the response body
+                    os.write(maxPara.getBytes());
+
+                    // Close the OutputStream
+                    os.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                exchange.sendResponseHeaders(405, -1); // Method Not Allowed
+            }
+
+        }
     }
 
     static class SearchHandler implements HttpHandler {
@@ -354,7 +426,7 @@ public class SearchEngineServer {
                     if (j != i) {
                         if (htmlContent.toString().contains(urls[j].url)) {
                             // fill Lmatrix
-                            System.out.println("found one");
+                            // System.out.println("found one");
                             Lmatrix[i][j] = 1.0;
                             ILinksToCount++;
                         } else {
@@ -388,7 +460,7 @@ public class SearchEngineServer {
                 for (int j = 0; j < urls.length; j++) {
                     sum += Lmatrix[m][j] * Rmatrix[j][0];
                 }
-                System.out.println(sum);
+                // System.out.println(sum);
                 Rmatrix[m][0] = sum;
                 sum = 0.0;
             }

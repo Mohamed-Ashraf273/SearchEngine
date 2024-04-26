@@ -129,6 +129,7 @@
             let currentPage = 1;
             const resultsPerPage = 10;
             let arrayOfUrls = [];
+            let compressedPara = "";
 
             // Retrieve search query from URL parameter
             const urlParams = new URLSearchParams(window.location.search);
@@ -194,15 +195,30 @@
                     urlElement.href = url;
                     urlElement.classList.add('url-link');
                     container.appendChild(urlElement);
+                    
                     const urlpara = document.createElement('p');
-                    getHtmlContent(url)
-                        .then(paragraph => {
-                            console.log(paragraph);
-                            urlpara.textContent = paragraph;
-                            //urlElement.href = url;
-                            urlpara.classList.add('para-text');
-                            container.appendChild(urlpara);
-                        });
+                    fetch(`http://localhost:8080/getPara?${encodeURIComponent(url)}`)
+                    .then(response => response.text())
+                    .then(paragraph => {
+                        if(paragraph.length>150){
+                            for(let u=0;u<150;u++){
+                                compressedPara += paragraph[u];
+                            }
+                            paragraph = compressedPara;
+                        }
+                        paragraph += ".....";
+                        urlpara.textContent = paragraph;
+                        //urlElement.href = url;
+                        urlpara.classList.add('para-text');
+                        container.appendChild(urlpara);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        urlpara.textContent = "can't fetch paragraph";
+                        //urlElement.href = url;
+                        urlpara.classList.add('para-text');
+                        container.appendChild(urlpara);
+                    });
 
                     searchResults.appendChild(container);
                 }
@@ -227,41 +243,8 @@
                 displayResults(currentPage);
                 updatePaginationButtons();
             }
-            function getHtmlContent(url) {
-                return fetch(url)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.text();
-                    })
-                    .then(html => {
-                        // Parse the HTML content
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
 
-                        // Get the paragraphs from the HTML content
-                        const paragraphs = Array.from(doc.querySelectorAll('p')).map(p => p.textContent).filter(p => p.trim() !== '');
 
-                        // Return the first paragraph found (or null if none found)
-                        // Find the paragraph with maximum length
-                        let maxParagraph = null;
-                        let maxLength = 0;
-                        paragraphs.forEach(paragraph => {
-                            if (paragraph.length > maxLength) {
-                                maxLength = paragraph.length;
-                                maxParagraph = paragraph;
-                            }
-                        });
-
-                        // Return the paragraph with maximum length
-                        return maxParagraph;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching HTML:', error);
-                        return "Can't fetch paragraphes due to CORS (Cross-Origin Resource Sharing) restrictions.";
-                    });
-            }
             // Event listeners for pagination buttons
             document.getElementById('nextButton').addEventListener('click', nextPage);
             document.getElementById('previousButton').addEventListener('click', previousPage);
