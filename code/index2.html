@@ -84,7 +84,7 @@
             padding: 10px;
             margin-bottom: 10px;
             border-radius: 5px;
-            width: 50%; /* Adjust as needed */
+            width: 45%; /* Adjust as needed */
             margin-left: 10px; /* Align to the left */
         }
 
@@ -103,6 +103,10 @@
         .url-link {
             font-size: 14px;
             color: black;
+        }
+        .para-text{
+            font-size: 14px;
+            color: green;
         }
     </style>
 </head>
@@ -190,6 +194,15 @@
                     urlElement.href = url;
                     urlElement.classList.add('url-link');
                     container.appendChild(urlElement);
+                    const urlpara = document.createElement('p');
+                    getHtmlContent(url)
+                        .then(paragraph => {
+                            console.log(paragraph);
+                            urlpara.textContent = paragraph;
+                            //urlElement.href = url;
+                            urlpara.classList.add('para-text');
+                            container.appendChild(urlpara);
+                        });
 
                     searchResults.appendChild(container);
                 }
@@ -214,7 +227,41 @@
                 displayResults(currentPage);
                 updatePaginationButtons();
             }
+            function getHtmlContent(url) {
+                return fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        // Parse the HTML content
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
 
+                        // Get the paragraphs from the HTML content
+                        const paragraphs = Array.from(doc.querySelectorAll('p')).map(p => p.textContent).filter(p => p.trim() !== '');
+
+                        // Return the first paragraph found (or null if none found)
+                        // Find the paragraph with maximum length
+                        let maxParagraph = null;
+                        let maxLength = 0;
+                        paragraphs.forEach(paragraph => {
+                            if (paragraph.length > maxLength) {
+                                maxLength = paragraph.length;
+                                maxParagraph = paragraph;
+                            }
+                        });
+
+                        // Return the paragraph with maximum length
+                        return maxParagraph;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching HTML:', error);
+                        return "Can't fetch paragraphes due to CORS (Cross-Origin Resource Sharing) restrictions.";
+                    });
+            }
             // Event listeners for pagination buttons
             document.getElementById('nextButton').addEventListener('click', nextPage);
             document.getElementById('previousButton').addEventListener('click', previousPage);
