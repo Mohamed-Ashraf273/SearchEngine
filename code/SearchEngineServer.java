@@ -41,6 +41,7 @@ public class SearchEngineServer {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
         server.createContext("/search", new SearchHandler());
         server.createContext("/getPara", new getParaHandler());
+        server.createContext("/getSuggestions", new getSuggestionsHandler());
 
         server.setExecutor(null);
         server.start();
@@ -150,6 +151,58 @@ public class SearchEngineServer {
         System.out.println("finished");
         waitTillCalc = false;
         // --------------------------------------------------------------------------------
+    }
+
+    static class getSuggestionsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery(); // query words from the user in a string form
+                String[] suggestionsList = null;
+                String temp = "";
+                try (BufferedReader br = new BufferedReader(new FileReader(query))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        // Process each line here
+                        temp += line;
+                        temp += "\n";
+                        // System.out.println(line); // For example, print each line to the console
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                // System.out.println(temp);
+                suggestionsList = temp.split("\n");
+                // Send response to the frontend
+                try {
+                    // Enable CORS by setting appropriate headers
+                    exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+                    exchange.getResponseHeaders().set("Access-Control-Allow-Methods",
+                            "GET, POST, PUT, DELETE, OPTIONS");
+                    exchange.getResponseHeaders().set("Access-Control-Allow-Headers",
+                            "Content-Type, Authorization");
+
+                    // Set the response status code to 200 (OK)
+                    exchange.sendResponseHeaders(200, 0);
+
+                    // Get the response body OutputStream
+                    OutputStream os = exchange.getResponseBody();
+
+                    // Write each URL in the array as a separate line to the response body
+                    for (String str : suggestionsList) {
+                        os.write(str.getBytes());
+                        os.write("\n".getBytes()); // Add a newline character between each URL
+                    }
+
+                    // Close the OutputStream
+                    os.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                exchange.sendResponseHeaders(405, -1); // Method Not Allowed
+            }
+        }
     }
 
     static class getParaHandler implements HttpHandler {

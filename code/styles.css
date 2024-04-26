@@ -15,6 +15,7 @@ body {
     border-radius: 8px;
     padding: 40px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 60%; /* Adjust the width as needed */
 }
 
 h1 {
@@ -26,7 +27,7 @@ h1 {
 input[type="text"] {
     padding: 12px;
     margin-bottom: 20px;
-    width: 100%;
+    width: 100%; /* Adjust as needed */
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
@@ -53,3 +54,44 @@ button:hover {
     font-size: 1.1rem;
 }
 
+/* Combo box styles */
+.combo-box {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.search-input {
+    padding: 12px 60px 12px 12px; /* Adjust as needed */
+    margin-bottom: 20px;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.options-dropdown {
+    position: absolute;
+    top: 100%; /* Position dropdown below input */
+    left: 0;
+    width: 100%;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 8px 8px; /* Rounded bottom corners */
+    z-index: 1; /* Ensure the dropdown is above other content */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none; /* Initially hidden */
+    max-height: 200px; /* Adjust as needed */
+    overflow-y: auto;
+}
+
+.option {
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.option:hover {
+    background-color: #f2f2f2;
+}
