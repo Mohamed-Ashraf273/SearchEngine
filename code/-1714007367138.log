@@ -1,9 +1,0 @@
-index2.html?query=football:80  Error: SyntaxError: Unexpected non-whitespace character after JSON at position 5 (line 2 column 1)
-(anonymous) @ index2.html?query=football:80
-Promise.catch (async)
-(anonymous) @ index2.html?query=football:80
-
-        [NEW] Explain Console errors by using Copilot in Edge: click 
-         to explain an error. 
-        Learn more
-        Don't show again

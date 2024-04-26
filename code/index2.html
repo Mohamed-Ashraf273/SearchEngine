@@ -150,6 +150,10 @@
                         // Display pagination buttons after receiving the response
                         document.getElementById('paginationButtons').style.display = 'flex';
                         displayResults(currentPage);
+                        if (document.body.scrollHeight < window.innerHeight) {
+                            document.getElementById('paginationButtons').style.position = 'absolute';
+                            document.getElementById('paginationButtons').style.transform = 'translateX(-350%)';
+                        }
                         if(arrayOfUrls.length - 1 > resultsPerPage){
                             nextButton.disabled = false;
                         }

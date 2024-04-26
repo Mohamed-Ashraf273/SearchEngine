@@ -3,14 +3,17 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.io.FileReader;
 
 public class SearchEngineServer {
     // for mohamed ashraf for testing not in main code
@@ -30,6 +33,7 @@ public class SearchEngineServer {
     }
 
     // ---------------------------------------------------------------------
+    private static doc[] totalSystemDocs;
     private static word[] wrds;
     private static boolean waitTillCalc;
 
@@ -39,10 +43,26 @@ public class SearchEngineServer {
         server.setExecutor(null);
         server.start();
         System.out.println("Server started on port 8080");
-
+        totalSystemDocs = new doc[30];// will me modified
+        for (int i = 0; i < totalSystemDocs.length; i++) {
+            totalSystemDocs[i] = new doc();
+        }
         // mohamed tests
         // here--------------------------------------------------------------
         // my temp database
+        try (BufferedReader br = new BufferedReader(new FileReader("LinksToTestRanker.txt"))) {
+            String line;
+            int i = 0;
+            while ((line = br.readLine()) != null) {
+                // Process each line here
+                totalSystemDocs[i].url = line;
+                // System.out.println(line); // For example, print each line to the console
+                i++;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         wrds = new word[3];
         waitTillCalc = true;
         for (int i = 0; i < wrds.length; i++) {
@@ -60,26 +80,27 @@ public class SearchEngineServer {
         }
         wrds[0].DF = 10.0 / 30.0;
         wrds[0].wrd = "football";
-        wrds[0].docs[0].url = "https://www.crazygames.com/t/soccer";
-        wrds[0].docs[1].url = "https://playfootball.games/";
+        wrds[0].docs[0].url = "https://www.bbc.com/sport/football";
+        wrds[0].docs[1].url = "https://www.bbc.com/business";
         wrds[0].docs[2].url = "https://poki.com/en/american-football";
         wrds[0].docs[3].url = "https://www.theguardian.com/football";
         wrds[0].docs[4].url = "https://www.britannica.com/sports/football-soccer";
         wrds[0].docs[5].url = "https://www.aljazeera.com/sports/liveblog/2024/4/23/live-arsenal-vs-chelsea-premier-league-football";
-        wrds[0].docs[6].url = "https://en.wikipedia.org/wiki/Association_football";
+        wrds[0].docs[6].url = "https://www.nfl.com/";
         wrds[0].docs[7].url = "https://www.bbc.com/sport/football";
         wrds[0].docs[8].url = "https://en.wikipedia.org/wiki/Football";
         wrds[0].docs[9].url = "https://www.skysports.com/football";
         for (int i = 0; i < 10; i++) {
             wrds[0].docs[i].TF = calc_tf(wrds[0].wrd, wrds[0].docs[i].url);
             System.out.println(wrds[0].docs[i].TF);
-            wrds[0].docs[i].TF_IDF = calc_tfIdf(wrds[0].docs[i].url, wrds[0].DF, wrds[0].docs[i].TF);
+            wrds[0].docs[i].TF_IDF = calc_tfIdf(wrds[0].docs[i].url, wrds[0].DF,
+                    wrds[0].docs[i].TF);
         }
 
         wrds[1].DF = 10 / 30;
         wrds[1].wrd = "food";
         wrds[1].docs[0].url = "https://en.wikipedia.org/wiki/Food";
-        wrds[1].docs[1].url = "https://www.fao.org/home/en";
+        wrds[1].docs[1].url = "https://www.facebook.com/BBCSPORT";
         wrds[1].docs[2].url = "https://www.food.com/";
         wrds[1].docs[3].url = "https://www.nationalgeographic.org/article/food/";
         wrds[1].docs[4].url = "https://www.foodnetwork.com/";
@@ -88,17 +109,17 @@ public class SearchEngineServer {
         wrds[1].docs[7].url = "https://www.reddit.com/r/food/";
         wrds[1].docs[8].url = "https://www.buzzfeed.com/food";
         wrds[1].docs[9].url = "https://www.fda.gov/food";
-        // for (int i = 0; i < 10; i++) {
-        // wrds[1].docs[i].TF = calc_tf(wrds[1].wrd, wrds[1].docs[i].url);
-        // wrds[1].docs[i].TF_IDF = calc_tfIdf(wrds[1].docs[i].url, wrds[1].DF,
-        // wrds[1].docs[i].TF);
-        // }
+        for (int i = 0; i < 10; i++) {
+            wrds[1].docs[i].TF = calc_tf(wrds[1].wrd, wrds[1].docs[i].url);
+            wrds[1].docs[i].TF_IDF = calc_tfIdf(wrds[1].docs[i].url, wrds[1].DF,
+                    wrds[1].docs[i].TF);
+        }
 
         wrds[2].DF = 10 / 30;
         wrds[2].wrd = "games";
-        wrds[2].docs[0].url = "https://playfootball.games/";
+        wrds[2].docs[0].url = "https://poki.com/en/american-football";
         wrds[2].docs[1].url = "https://www.crazygames.com/t/soccer";
-        wrds[2].docs[2].url = "https://poki.com/en/american-football";
+        wrds[2].docs[2].url = "https://playfootball.games/";
         wrds[2].docs[3].url = "https://www.gamespot.com/";
         wrds[2].docs[4].url = "https://www.wired.com/tag/video-games/";
         wrds[2].docs[5].url = "https://www.metacritic.com/browse/game/all/all/current-year/";
@@ -110,6 +131,18 @@ public class SearchEngineServer {
             wrds[2].docs[i].TF = calc_tf(wrds[2].wrd, wrds[2].docs[i].url);
             wrds[2].docs[i].TF_IDF = calc_tfIdf(wrds[2].docs[i].url, wrds[2].DF,
                     wrds[2].docs[i].TF);
+        }
+        System.out.println("NowCalculating Pageranks");
+        calc_pageRank(totalSystemDocs);
+        // assign each url in words with its page rank
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < wrds[i].docs.length; j++) {
+                for (int k = 0; k < totalSystemDocs.length; k++) {
+                    if (wrds[i].docs[j].url.equals(totalSystemDocs[k].url)) {
+                        wrds[i].docs[j].PageRank = totalSystemDocs[k].PageRank;
+                    }
+                }
+            }
         }
         System.out.println("finished");
         waitTillCalc = false;
@@ -271,10 +304,94 @@ public class SearchEngineServer {
         return tf * (1 / df);
     }
 
-    // calc pagerank of a url
-    public static int calc_pageRank(String urlLink) {
-        int pr = 0;
-        return pr;
+    // calc pagerank of a urls
+    public static void calc_pageRank(doc[] urls) {
+        double[][] Lmatrix = new double[urls.length][urls.length];
+        double[][] Rmatrix = new double[urls.length][1];
+        int ILinksToCount = 0;
+        double epsilon = 0.0002;
+
+        for (int i = 0; i < urls.length; i++) {
+            Rmatrix[i][0] = 1.0 / urls.length;
+        }
+        for (int i = 0; i < urls.length; i++) {
+            try {
+                URL url = new URL(urls[i].url);
+
+                // Open a connection to the URL
+                URLConnection urlcon = url.openConnection();
+
+                InputStream stream = urlcon.getInputStream();
+                BufferedReader in = new BufferedReader(new InputStreamReader(stream));
+
+                // Read the HTML content line by line
+                StringBuilder htmlContent = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    htmlContent.append(inputLine);
+                }
+                // Close the input stream
+                in.close();
+                // getting urls in the page
+                // String html = htmlContent.toString();
+                // Pattern pattern =
+                // Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1");
+                // Matcher matcher = pattern.matcher(html);
+                // while (matcher.find()) {
+                // String link = matcher.group(2);
+                // // Ensure the link is not empty and not a fragment identifier
+                // if (!link.isEmpty() && !link.startsWith("#")) {
+                // System.out.println(link);
+                // }
+                // }
+                // System.out.println(htmlContent);
+                for (int j = 0; j < urls.length; j++) {
+                    if (j != i) {
+                        if (htmlContent.toString().contains(urls[j].url)) {
+                            // fill Lmatrix
+                            System.out.println("found one");
+                            Lmatrix[i][j] = 1.0;
+                            ILinksToCount++;
+                        } else {
+                            Lmatrix[i][j] = 0.0;
+                        }
+                    } else {
+                        Lmatrix[i][j] = 0.0;
+                    }
+                }
+                // normalizing Lmatrix
+                if (ILinksToCount != 0) {
+                    for (int j = 0; j < urls.length; j++) {
+                        Lmatrix[i][j] /= ILinksToCount;
+                    }
+                }
+                // for (int p = 0; p < urls.length; p++) {
+                // System.out.println(Lmatrix[i][p]);
+                // }
+                ILinksToCount = 0;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+        // matrix multiplication till certian accuracy
+        double prevCheck;
+        double sum = 0.0;
+        do {
+            prevCheck = Rmatrix[0][0];
+            for (int m = 0; m < urls.length; m++) {
+                for (int j = 0; j < urls.length; j++) {
+                    sum += Lmatrix[m][j] * Rmatrix[j][0];
+                }
+                System.out.println(sum);
+                Rmatrix[m][0] = sum;
+                sum = 0.0;
+            }
+        } while (Math.abs(Rmatrix[0][0] - prevCheck) >= epsilon);
+
+        for (int i = 0; i < urls.length; i++) {
+            urls[i].PageRank = Rmatrix[i][0];
+        }
     }
 
     // Ranker function
@@ -303,7 +420,7 @@ public class SearchEngineServer {
         }
         for (int i = 0; i < ds.length; i++) {
             for (int j = 0; j < ds.length - 1; j++) {
-                if (ds[j + 1].Tf_IDF_total > ds[j].Tf_IDF_total) {
+                if ((ds[j + 1].Tf_IDF_total + ds[j + 1].PageRank) > (ds[j].Tf_IDF_total + ds[j].PageRank)) {
                     doc temp = ds[j + 1];
                     ds[j + 1] = ds[j];
                     ds[j] = temp;
