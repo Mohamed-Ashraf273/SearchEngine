@@ -184,10 +184,15 @@ public class SearchEngineServer {
                     words_have_common_docs = new word[1];
                     words_have_common_docs[0] = new word();
                     words_have_common_docs[0] = wrds[1];
-                    // doc[] Docs = Ranker(words_have_common_docs);
-                    // for (int i = 0; i < Docs.length; i++) {
-                    // finalList[i] = Docs[i].url;
-                    // }
+                    doc[] Docs = new doc[words_have_common_docs[0].docs.length];
+                    for (int i = 0; i < Docs.length; i++) {
+                        Docs[i] = new doc();
+                    }
+                    Ranker(words_have_common_docs, Docs);
+                    finalList = new String[Docs.length];// modify the size to be the final list size
+                    for (int i = 0; i < Docs.length; i++) {
+                        finalList[i] = Docs[i].url;
+                    }
                 } else {
                     if ("Games".equals(query)) {
                         words_have_common_docs = new word[1];
