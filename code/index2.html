@@ -127,7 +127,7 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             let currentPage = 1;
-            const resultsPerPage = 10;
+            const resultsPerPage = 5;
             let arrayOfUrls = [];
             let compressedPara = "";
 
@@ -154,11 +154,10 @@
                         });
                         // Display pagination buttons after receiving the response
                         document.getElementById('paginationButtons').style.display = 'flex';
+                        document.getElementById('paginationButtons').style.position = 'absolute';
+                        document.getElementById('paginationButtons').style.transform = 'translateX(-350%)';
                         displayResults(currentPage);
-                        if (document.body.scrollHeight < window.innerHeight) {
-                            document.getElementById('paginationButtons').style.position = 'absolute';
-                            document.getElementById('paginationButtons').style.transform = 'translateX(-350%)';
-                        }
+                        
                         if(arrayOfUrls.length - 1 > resultsPerPage){
                             nextButton.disabled = false;
                         }
@@ -169,7 +168,11 @@
                         console.error('Error:', error);
                     });
             }
-
+            function handleScrollability(){
+                document.getElementById('paginationButtons').style.display = 'flex';
+                document.getElementById('paginationButtons').style.position = '';
+                document.getElementById('paginationButtons').style.transform = '';
+            }
             function displayResults(page) {
                 const searchResults = document.getElementById('searchResults');
                 searchResults.innerHTML = ''; // Clear the page before displaying new content
@@ -222,6 +225,7 @@
 
                     searchResults.appendChild(container);
                 }
+                
                 document.getElementById('pageNumber').textContent = `Page ${page}`;
             }
 
@@ -248,7 +252,7 @@
             // Event listeners for pagination buttons
             document.getElementById('nextButton').addEventListener('click', nextPage);
             document.getElementById('previousButton').addEventListener('click', previousPage);
-
+            document.addEventListener("scroll", handleScrollability);
             // Initial display
             updatePaginationButtons();
         });
