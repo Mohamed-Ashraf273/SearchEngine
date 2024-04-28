@@ -492,9 +492,6 @@ public class SearchEngineServer {
                 // normalizing Lmatrix
                 if (ILinksToCount != 0) {
                     for (int j = 0; j < urls.length; j++) {
-                        System.out.println("Lmatrix[j][i] = " + Lmatrix[j][i]);
-                        System.out.println("ILinksToCount = " + ILinksToCount);
-                        System.out.println("\n");
                         Lmatrix[j][i] /= ILinksToCount;
                     }
                 }
