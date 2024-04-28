@@ -525,6 +525,11 @@ public class SearchEngineServer {
     }
 
     // Ranker function
+    // note this function must take all the docs common between all words in query, but why??
+    // Answer: because each doc related to a word, so for example: 
+    // given a query of two words word1 and word2 and a doc related to word1 but not to word2
+    // so doc has a tf_idf to word2, but has no tf_idf related to word1 
+    // (if we assume the tf_idf = 0 ----> this also makes a problem which is we can't get a tf_idf from a doc doesn't related to a word)
     public static void Ranker(word[] words, doc[] ds) {
         for (int i = 0; i < ds.length; i++) {
             ds[i].Tf_IDF_total = words[0].docs[i].TF_IDF;
