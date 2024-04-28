@@ -480,19 +480,22 @@ public class SearchEngineServer {
                         if (htmlContent.toString().contains(urls[j].url)) {
                             // fill Lmatrix
                             // System.out.println("found one");
-                            Lmatrix[i][j] = 1.0;
+                            Lmatrix[j][i] = 1.0;
                             ILinksToCount++;
                         } else {
-                            Lmatrix[i][j] = 0.0;
+                            Lmatrix[j][i] = 0.0;
                         }
                     } else {
-                        Lmatrix[i][j] = 0.0;
+                        Lmatrix[j][i] = 0.0;
                     }
                 }
                 // normalizing Lmatrix
                 if (ILinksToCount != 0) {
                     for (int j = 0; j < urls.length; j++) {
-                        Lmatrix[i][j] /= ILinksToCount;
+                        System.out.println("Lmatrix[j][i] = " + Lmatrix[j][i]);
+                        System.out.println("ILinksToCount = " + ILinksToCount);
+                        System.out.println("\n");
+                        Lmatrix[j][i] /= ILinksToCount;
                     }
                 }
                 // for (int p = 0; p < urls.length; p++) {
