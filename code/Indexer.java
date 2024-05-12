@@ -1,20 +1,33 @@
 import java.nio.file.Files;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import org.jsoup.nodes.Document;
 import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.nio.file.Paths;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.sql.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.HttpURLConnection;
+class doc {
+    String url;
+    double TF;// normalized
+    double TF_IDF;
+    double Tf_IDF_total;// if there is more than one word
+    double PageRank;
+}
 public class Indexer {
 	static mysqlServer obj;
+	static ranker obj2;
+	static TreeMap<String,TreeMap<String,TreeSet<Integer>>> invertedfile;
 	public static void main(String[] args) {
 		obj= new mysqlServer();
 		Vector<String> urls=new Vector<String>();
@@ -22,9 +35,22 @@ public class Indexer {
 		if(b) {
 			for(int i=0;i<urls.size();i++) {
 				indexDocument(urls.get(i));
+				obj.UpdateDocument(urls.get(i), true);
 			}
 		}
 		obj.CloseConnection();
+		/*String path = "D://loadedDocument//index3.html";
+		String html = LoadDocument(path);
+		String[] types=new String[8];
+		String[] words = ParseDocument(html,types);
+		for(int i=0;i<words.length;i++) {
+			System.out.println(words[i].replaceAll("\\.$", ""));
+		}
+		for(int i=0;i<types.length;i++) {
+			if(types[i]!=null) {
+				System.out.println(types[i]);	
+			}
+		}*/
 	}
 	public static String LoadDocument(String filepath) {
 		String content =null;
@@ -77,34 +103,61 @@ public class Indexer {
 	}
 	static String[] ParseDocument(String html,String[] Types) { // Types contains title and headings
 		Document doc = Jsoup.parse(html);
-		Types[0] = doc.title();
-		int i=1;
-		Elements headings = doc.select("h1, h2, h3, h4, h5, h6");
-		for (Element heading : headings) {
-		    Types[i] = heading.text();
-		    i++;
-		}
+		Types[0] = doc.body().getElementsByTag("title").text();
+		Types[1] = doc.body().getElementsByTag("h1").text();
+		Types[2] = doc.body().getElementsByTag("h2").text();
+		Types[3] = doc.body().getElementsByTag("h3").text();
+		Types[4] = doc.body().getElementsByTag("h4").text();
+		Types[5] = doc.body().getElementsByTag("h5").text();
+		Types[6] = doc.body().getElementsByTag("h6").text();
+		Types[7] = doc.body().getElementsByTag("a").text();
 		String content = doc.text();
 		String[] words = content.split("\\s+");
 		return words;
 	}
+	@SuppressWarnings("static-access")
 	static void indexDocument(String url) {
 		String html = DownloadDocument(url);
-		String[] types = new String[7];
+		String[] types = new String[8];
 		String[] textplain = ParseDocument(html,types);
 		HashSet<String> insertedWords =new HashSet<>();
 		for(int i=0;i<textplain.length;i++) {
 			if(insertedWords.contains(textplain[i])) {
-
+                obj.InsertPosition(textplain[i], url, i);
 			}
 			else {
-				
+				insertedWords.add(textplain[i]);
+				double tf=obj2.calc_tf(textplain[i], url);
+				double tf_idf=obj2.calc_tfIdf(url, 500.0, tf);
+				String type=FindType(textplain[i],types);
+				obj.InsertWordinDocument(textplain[i],url,tf_idf,type);
 			}
 		}
 	}
+	static String FindType(String word,String[] Types) {
+		if(Types[0]!=null &&Types[0].contains(word)) {
+			return "title";
+		} else if(Types[1]!=null &&Types[1].contains(word)) {
+			return "h1"; 
+		} else if(Types[2]!=null &&Types[2].contains(word)) {
+			return "h2";
+		} else if(Types[3]!=null &&Types[3].contains(word)) {
+			return "h3";
+		} else if(Types[4]!=null &&Types[4].contains(word)) {
+			return "h4";
+		} else if(Types[5]!=null &&Types[5].contains(word)) {
+			return "h5";
+		} else if(Types[6]!=null &&Types[6].contains(word)) {
+			return "h6";
+		} else if(Types[7]!=null &&Types[7].contains(word)) {
+			return "hyperlink";
+		} else {
+			return "textplain";
+		}
+	}
 	static String Stemmer(String word) {
-		String stem = word.replaceFirst("ing", "");
-		String stem2=stem.replaceFirst("ed", "");
+		String stem = word.replaceFirst("ing$", "");
+		String stem2=stem.replaceFirst("ed$", "");
 		return stem2;
 	}
 }
@@ -129,23 +182,6 @@ class mysqlServer {
 			
 		}
 	}
-	boolean InsertWord(String word,float idf) {
-		String insertQuery = "INSERT INTO Words (word,idf) VALUES (?, ?)";
-		int rowsInserted=0;
-		try {
-			PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
-			insertStatement.setString(1,word);
-			insertStatement.setFloat(2,idf);
-			rowsInserted = insertStatement.executeUpdate();	
-			insertStatement.close();
-		} catch (Exception e) {
-			return false;
-		}
-		if (rowsInserted > 0) {
-		    return true;
-		}
-		return false;
-	}// insert word with its idf
 	boolean InsertDocument(String url) {
 		String insertQuery = "INSERT INTO URLs (document) VALUES (?)";
 		int rowsInserted=0;
@@ -162,14 +198,14 @@ class mysqlServer {
 		}
 		return false;
 	}// insert document to be indexed later	
-	boolean InsertWordinDocument(String word,String url,int tf,String type) {
-		String insertQuery = "INSERT INTO Documents (word,document,tf,type) VALUES (?,?,?,?)";
+	boolean InsertWordinDocument(String word,String url,double tf_idf,String type) {
+		String insertQuery = "INSERT INTO Documents (word,document,tf_idf,type) VALUES (?,?,?,?)";
 		int rowsInserted=0;
 		try {
 			PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
 			insertStatement.setString(1,word);
 			insertStatement.setString(2,url);
-			insertStatement.setInt(3,tf);
+			insertStatement.setDouble(3,tf_idf);
 			insertStatement.setString(4,type);
 			rowsInserted = insertStatement.executeUpdate();	
 			insertStatement.close();
@@ -217,14 +253,14 @@ class mysqlServer {
 		}
 		return false;
 	}// make document indexed or not
-	boolean RetrieveDocuments(String word,Vector<String> documents,Vector<Integer> TF,Vector<String> type) {
+	boolean RetrieveDocuments(String word,Vector<String> documents,Vector<Double> TF_IDF,Vector<String> type) {
 		String selectQuery = "SELECT document,tf,type FROM Documents WHERE word = "+word;
         try {
     		Statement selectStatement = connection.createStatement();
     		ResultSet resultSet = selectStatement.executeQuery(selectQuery);
     		while (resultSet.next()) {
     		    documents.add(resultSet.getString("document"));
-    		    TF.add(resultSet.getInt("tf"));
+    		    TF_IDF.add(resultSet.getDouble("tf_idf"));
     		    type.add(resultSet.getString("type"));
     		}
     		resultSet.close();
@@ -233,7 +269,7 @@ class mysqlServer {
         	return false;
         }
         return true;
-	}// retrieve documents where word appears with its type and tf
+	}// retrieve documents where word appears with its type and tf-idf
 	boolean LoadDocuments(Vector<String> documents) {
 		String selectQuery = "SELECT document FROM URLs WHERE indexed = false";
         try {
@@ -249,22 +285,6 @@ class mysqlServer {
         }
         return true;
 	}// load non indexed documents
-	Float RetrieveIDF(String word) {
-		String selectQuery = "SELECT idf FROM Words WHERE word = "+word;
-		Float idf = null;
-        try {
-    		Statement selectStatement = connection.createStatement();
-    		ResultSet resultSet = selectStatement.executeQuery(selectQuery);
-    		if (resultSet.next()) {
-    		    idf=resultSet.getFloat("type");
-    		}
-    		resultSet.close();
-    		selectStatement.close();	
-        } catch (Exception e) {
-        	return null;
-        }
-        return idf;
-	}// retrieve idf for a word
 	boolean RetrievePosition(String word,String url,Vector<Integer> positions) {
 		String selectQuery = "SELECT position FROM Positions WHERE word = "+word+" AND document = "+url;
         try {
@@ -280,8 +300,137 @@ class mysqlServer {
         }
         return true;
 	}// retrieve the positions of the word in a document
+	
 };
 class QueryProcessor{
 	void GetSearchQuery() {}
 	void GetDocumentsForWord() {}
 };
+class ranker{
+	// calc tf given a url and a word
+	public static double calc_tf(String wrd, String urlLink) {
+	    int tf = 0;
+	    double totalWrds = 0;
+	    try {
+	        @SuppressWarnings("deprecation")
+			URL url = new URL(urlLink);
+	        BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
+	        String line;
+	        StringBuilder content = new StringBuilder();
+	        while ((line = reader.readLine()) != null) {
+	            content.append(line);
+	            totalWrds += line.split("\\s+").length;
+	        }
+	        reader.close();
+
+	        // Count occurrences of the word in the content
+	        Pattern pattern = Pattern.compile("\\b" + wrd + "\\b", Pattern.CASE_INSENSITIVE);
+	        Matcher matcher = pattern.matcher(content.toString());
+
+	        while (matcher.find()) {
+	            tf++;
+	        }
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	        return 0.0;
+	    }
+	    return tf / totalWrds;
+	}
+
+	// function calcualtes tf-idf of a url
+	public static double calc_tfIdf(String urlLink, double df, double tf) {
+	    return tf * (1 / df);
+	}
+
+	// calc pagerank of a urls
+	public static void calc_pageRank(doc[] urls) {
+	    double[][] Lmatrix = new double[urls.length][urls.length];
+	    double[][] Rmatrix = new double[urls.length][1];
+	    int ILinksToCount = 0;
+	    double epsilon = 0.0002;
+
+	    for (int i = 0; i < urls.length; i++) {
+	        Rmatrix[i][0] = 1.0 / urls.length;
+	    }
+	    for (int i = 0; i < urls.length; i++) {
+	        try {
+	            @SuppressWarnings("deprecation")
+				URL url = new URL(urls[i].url);
+
+	            // Open a connection to the URL
+	            URLConnection urlcon = url.openConnection();
+
+	            InputStream stream = urlcon.getInputStream();
+	            BufferedReader in = new BufferedReader(new InputStreamReader(stream));
+
+	            // Read the HTML content line by line
+	            StringBuilder htmlContent = new StringBuilder();
+	            String inputLine;
+	            while ((inputLine = in.readLine()) != null) {
+	                htmlContent.append(inputLine);
+	            }
+	            // Close the input stream
+	            in.close();
+	            // getting urls in the page
+	            // String html = htmlContent.toString();
+	            // Pattern pattern =
+	            // Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1");
+	            // Matcher matcher = pattern.matcher(html);
+	            // while (matcher.find()) {
+	            // String link = matcher.group(2);
+	            // // Ensure the link is not empty and not a fragment identifier
+	            // if (!link.isEmpty() && !link.startsWith("#")) {
+	            // System.out.println(link);
+	            // }
+	            // }
+	            // System.out.println(htmlContent);
+	            for (int j = 0; j < urls.length; j++) {
+	                if (j != i) {
+	                    if (htmlContent.toString().contains(urls[j].url)) {
+	                        // fill Lmatrix
+	                        // System.out.println("found one");
+	                        Lmatrix[j][i] = 1.0;
+	                        ILinksToCount++;
+	                    } else {
+	                        Lmatrix[j][i] = 0.0;
+	                    }
+	                } else {
+	                    Lmatrix[j][i] = 0.0;
+	                }
+	            }
+	            // normalizing Lmatrix
+	            if (ILinksToCount != 0) {
+	                for (int j = 0; j < urls.length; j++) {
+	                    Lmatrix[j][i] /= ILinksToCount;
+	                }
+	            }
+	            // for (int p = 0; p < urls.length; p++) {
+	            // System.out.println(Lmatrix[i][p]);
+	            // }
+	            ILinksToCount = 0;
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        }
+
+	    }
+	    // matrix multiplication till certian accuracy
+	    double prevCheck;
+	    double sum = 0.0;
+	    do {
+	        prevCheck = Rmatrix[0][0];
+	        for (int m = 0; m < urls.length; m++) {
+	            for (int j = 0; j < urls.length; j++) {
+	                sum += Lmatrix[m][j] * Rmatrix[j][0];
+	            }
+	            // System.out.println(sum);
+	            Rmatrix[m][0] = sum;
+	            sum = 0.0;
+	        }
+	    } while (Math.abs(Rmatrix[0][0] - prevCheck) >= epsilon);
+
+	    for (int i = 0; i < urls.length; i++) {
+	        urls[i].PageRank = Rmatrix[i][0];
+	    }
+	}
+};
+
