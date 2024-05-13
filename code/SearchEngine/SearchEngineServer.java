@@ -1,3 +1,4 @@
+package SearchEngine;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
@@ -19,11 +20,11 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.Collections;
 import java.util.Vector;
-
+import SearchEngine.QueryProcessor;
 public class SearchEngineServer {
     // for mohamed ashraf for testing not in main code
     // ---------------------------------------------------------------------
-    private static class doc {
+    public static class doc {
         String url;
         double TF;// normalized
         double TF_IDF;
@@ -43,6 +44,7 @@ public class SearchEngineServer {
     // private static boolean waitTillCalc;
     // private static boolean waitTillFillingDocsAndWrds;
     private static int querySize;
+    private static QueryProcessor obj3;
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
@@ -257,7 +259,8 @@ public class SearchEngineServer {
                 querySize = qWrds.length;
 
                 // get resuled List and fill the vector
-
+                obj3.OpenConnection();
+                ResuledDocs = obj3.GetSearchQuery(qWrds);
                 // filling queryWords
                 for (int i = 0; i < querySize; i++) {
                     word w = new word();
@@ -265,14 +268,15 @@ public class SearchEngineServer {
                     Vector<doc> d = new Vector<>();
                     // fill each word with its docs(get docs related to each word)
                     // ...............
+                    obj3.GetDocumentsForWord(qWrds[i], d);
                     ///////////////////////////////////////////////////////////
                     doc[] dArr = d.toArray(new doc[d.size()]);
                     w.docs = dArr;
                     // assign to each word its df
-                    // w.DF =
+                    w.DF = d.size();
                     queryWords.add(w);
                 }
-
+                obj3.CloseConnection();
                 // waitTillFillingDocsAndWrds = false;
 
                 // Getting Common Docs:

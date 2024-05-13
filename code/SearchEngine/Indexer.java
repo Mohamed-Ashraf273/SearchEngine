@@ -1,3 +1,4 @@
+package SearchEngine;
 import java.nio.file.Files;
 import org.jsoup.Jsoup;
 import java.util.TreeMap;
@@ -6,11 +7,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import java.util.Vector;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.nio.file.Paths;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
@@ -18,20 +16,8 @@ import java.sql.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.net.URLConnection;
 import java.net.HttpURLConnection;
-class doc {
-    String url;
-    double TF;// normalized
-    double TF_IDF;
-    double Tf_IDF_total;// if there is more than one word
-    double PageRank;
-}
-class word {
-    String wrd;
-    doc[] docs;
-    double DF;// norm
-}
+import SearchEngine.SearchEngineServer.doc;
 class Locations{
 	String type;
 	Vector<Integer> locations;
@@ -42,7 +28,7 @@ class Locations{
 };
 public class Indexer {
 	static mysqlServer obj;
-	static ranker obj2;
+	static SearchEngineServer obj2;
 	static TreeMap<String,TreeMap<String,Locations>> invertedfile;
 	public static void main(String[] args) {
 		obj= new mysqlServer();
@@ -171,6 +157,7 @@ public class Indexer {
 			}
 		}
 	}
+	@SuppressWarnings("static-access")
 	static void insertIntoDatabase() {
         for (Map.Entry<String, TreeMap<String,Locations>> entry : invertedfile.entrySet()) {
             String word = entry.getKey();
@@ -365,8 +352,7 @@ class QueryProcessor{
 	void CloseConnection(){
 		obj.CloseConnection();
 	}
-	Vector<doc> GetSearchQuery(String query) {
-		String[] words=(query.toLowerCase()).split("\\s+");
+	Vector<doc> GetSearchQuery(String[] words ) {
 		Vector<doc> result=new Vector<doc>();
 		Vector<doc> tmp = new Vector<doc>();
 		int i=0;
@@ -414,177 +400,4 @@ class QueryProcessor{
 		}
         return false;		
 	}
-};
-class ranker{
-	// calc tf given a url and a word
-	public double calc_tf(String wrd, String urlLink) {
-	    int tf = 0;
-	    double totalWrds = 0;
-	    try {
-	        @SuppressWarnings("deprecation")
-			URL url = new URL(urlLink);
-	        BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-	        String line;
-	        StringBuilder content = new StringBuilder();
-	        while ((line = reader.readLine()) != null) {
-	            content.append(line);
-	            totalWrds += line.split("\\s+").length;
-	        }
-	        reader.close();
-
-	        // Count occurrences of the word in the content
-	        Pattern pattern = Pattern.compile("\\b" + wrd + "\\b", Pattern.CASE_INSENSITIVE);
-	        Matcher matcher = pattern.matcher(content.toString());
-
-	        while (matcher.find()) {
-	            tf++;
-	        }
-	    } catch (IOException e) {
-	        e.printStackTrace();
-	        return 0.0;
-	    }
-	    return tf / totalWrds;
-	}
-
-	// function calcualtes tf-idf of a url
-	public double calc_tfIdf(String urlLink, double df, double tf) {
-	    return tf * (1 / df);
-	}
-
-	// calc pagerank of a urls
-	public static void calc_pageRank(doc[] urls) {
-	    double[][] Lmatrix = new double[urls.length][urls.length];
-	    double[][] Rmatrix = new double[urls.length][1];
-	    int ILinksToCount = 0;
-	    double epsilon = 0.0002;
-
-	    for (int i = 0; i < urls.length; i++) {
-	        Rmatrix[i][0] = 1.0 / urls.length;
-	    }
-	    for (int i = 0; i < urls.length; i++) {
-	        try {
-	            @SuppressWarnings("deprecation")
-				URL url = new URL(urls[i].url);
-
-	            // Open a connection to the URL
-	            URLConnection urlcon = url.openConnection();
-
-	            InputStream stream = urlcon.getInputStream();
-	            BufferedReader in = new BufferedReader(new InputStreamReader(stream));
-
-	            // Read the HTML content line by line
-	            StringBuilder htmlContent = new StringBuilder();
-	            String inputLine;
-	            while ((inputLine = in.readLine()) != null) {
-	                htmlContent.append(inputLine);
-	            }
-	            // Close the input stream
-	            in.close();
-	            // getting urls in the page
-	            // String html = htmlContent.toString();
-	            // Pattern pattern =
-	            // Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1");
-	            // Matcher matcher = pattern.matcher(html);
-	            // while (matcher.find()) {
-	            // String link = matcher.group(2);
-	            // // Ensure the link is not empty and not a fragment identifier
-	            // if (!link.isEmpty() && !link.startsWith("#")) {
-	            // System.out.println(link);
-	            // }
-	            // }
-	            // System.out.println(htmlContent);
-	            for (int j = 0; j < urls.length; j++) {
-	                if (j != i) {
-	                    if (htmlContent.toString().contains(urls[j].url)) {
-	                        // fill Lmatrix
-	                        // System.out.println("found one");
-	                        Lmatrix[j][i] = 1.0;
-	                        ILinksToCount++;
-	                    } else {
-	                        Lmatrix[j][i] = 0.0;
-	                    }
-	                } else {
-	                    Lmatrix[j][i] = 0.0;
-	                }
-	            }
-	            // normalizing Lmatrix
-	            if (ILinksToCount != 0) {
-	                for (int j = 0; j < urls.length; j++) {
-	                    Lmatrix[j][i] /= ILinksToCount;
-	                }
-	            }
-	            // for (int p = 0; p < urls.length; p++) {
-	            // System.out.println(Lmatrix[i][p]);
-	            // }
-	            ILinksToCount = 0;
-	        } catch (IOException e) {
-	            e.printStackTrace();
-	        }
-
-	    }
-	    // matrix multiplication till certian accuracy
-	    double prevCheck;
-	    double sum = 0.0;
-	    do {
-	        prevCheck = Rmatrix[0][0];
-	        for (int m = 0; m < urls.length; m++) {
-	            for (int j = 0; j < urls.length; j++) {
-	                sum += Lmatrix[m][j] * Rmatrix[j][0];
-	            }
-	            // System.out.println(sum);
-	            Rmatrix[m][0] = sum;
-	            sum = 0.0;
-	        }
-	    } while (Math.abs(Rmatrix[0][0] - prevCheck) >= epsilon);
-
-	    for (int i = 0; i < urls.length; i++) {
-	        urls[i].PageRank = Rmatrix[i][0];
-	    }
-	}
-    // Ranker function
-    // note this function must take all the docs common between all words in query,
-    // but why??
-    // Answer: because each doc related to a word, so for example:
-    // given a query of two words word1 and word2 and a doc related to word1 but not
-    // to word2
-    // so doc has a tf_idf to word1, but has no tf_idf related to word2
-    // (if we assume the tf_idf = 0 ----> this also makes a problem which is we
-    // can't get a tf_idf from a doc doesn't related to a word)
-    public static void Ranker(word[] words, doc[] ds) {
-        for (int i = 0; i < ds.length; i++) {
-            ds[i].Tf_IDF_total = words[0].docs[i].TF_IDF;
-            ds[i].url = words[0].docs[i].url;
-        }
-        // for (int i = 0; i < ds.length; i++) {
-        // System.out.println(ds[i].url);
-        // }
-        // note i use array of docs to attach each url to its data
-        // note if there is more than 1 element in the array it means that the query has
-        // many words then they all must have the same number of docs as they will store
-        // the common docs between them
-        for (int k = 0; k < words[0].docs.length; k++) {// for each url in words[0]
-            for (int i = 1; i < words.length; i++) {// search in all words docs about this url and add all tf_idf and
-                                                    // store it in a doc
-                for (int j = 0; j < words[i].docs.length; j++) {// iterate over the docs in words[i]
-                    if (words[0].docs[k].url.equals(words[i].docs[j].url)) {
-                        ds[k].Tf_IDF_total += words[i].docs[j].TF_IDF;
-                        break;
-                    }
-                }
-            }
-        }
-        for (int i = 0; i < ds.length; i++) {
-            for (int j = 0; j < ds.length - 1; j++) {
-                if ((ds[j + 1].Tf_IDF_total + ds[j + 1].PageRank) > (ds[j].Tf_IDF_total + ds[j].PageRank)) {
-                    doc temp = ds[j + 1];
-                    ds[j + 1] = ds[j];
-                    ds[j] = temp;
-                }
-            }
-        }
-        // for (int i = 0; i < ds.length; i++) {
-        // System.out.println(ds[i].url);
-        // }
-        return;
-    }
 };
