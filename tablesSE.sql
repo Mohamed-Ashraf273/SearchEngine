@@ -18,6 +18,15 @@ document varchar(300) not null,
 indexed bool Default false, 
 primary key(document)
 );
+create table queue(
+id int AUTO_INCREMENT,
+document varchar(1000) not null,
+primary key(id)
+);
+create table crawlset(
+document varchar(600) not null,
+primary key(document)
+);
 
 
 
