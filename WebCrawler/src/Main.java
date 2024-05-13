@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Main {
 
-    private static final int NoThreads = 10;
+    private static final int NoThreads = 30;
     public static void main(String[] args) throws InterruptedException {
         DB db = new DB();
         Queue<String> Links = new LinkedList<String>();
@@ -70,12 +70,19 @@ public class Main {
             }
         }
         db.clearTable("urls");
+        ResultSet set = db.selectURLs("crawlset");
+        try {
+            while(set.next())
+            {
+                db.InsertURL(set.getString("document"),"urls");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
         db.clearTable("crawlset");
         db.clearTable("queue");
-        for(String url : Crawlset)
-        {
-            db.InsertURL(url,"urls");
-        }
+
 
 
     }

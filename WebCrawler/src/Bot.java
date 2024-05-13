@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Bot implements Runnable {
     private static final int MAX_LINKS = 10;
-    private int count =100;
+    private int count =6000;
     private DB db;
     private Queue<String> SharedQ;
     private Set<String> SharedSet;
