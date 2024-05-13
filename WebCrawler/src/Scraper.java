@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 public class Scraper {
-    private static final int MAX_SCRAPE = 25;
+    private static final int MAX_SCRAPE = 50;
     private int count =0;
     private DB db;
 
