@@ -11,9 +11,14 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.print.Doc;
+
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.util.Collections;
+import java.util.Vector;
 
 public class SearchEngineServer {
     // for mohamed ashraf for testing not in main code
@@ -33,9 +38,11 @@ public class SearchEngineServer {
     }
 
     // ---------------------------------------------------------------------
-    private static doc[] totalSystemDocs;
-    private static word[] wrds;
-    private static boolean waitTillCalc;
+    private static Vector<doc> ResuledDocs;
+    private static Vector<word> queryWords;
+    // private static boolean waitTillCalc;
+    // private static boolean waitTillFillingDocsAndWrds;
+    private static int querySize;
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
@@ -46,110 +53,66 @@ public class SearchEngineServer {
         server.setExecutor(null);
         server.start();
         System.out.println("Server started on port 8080");
-        totalSystemDocs = new doc[30];// will me modified
-        for (int i = 0; i < totalSystemDocs.length; i++) {
-            totalSystemDocs[i] = new doc();
-        }
-        // mohamed tests
-        // here--------------------------------------------------------------
-        // my temp database
-        try (BufferedReader br = new BufferedReader(new FileReader("LinksToTestRanker.txt"))) {
-            String line;
-            int i = 0;
-            while ((line = br.readLine()) != null) {
-                // Process each line here
-                totalSystemDocs[i].url = line;
-                // System.out.println(line); // For example, print each line to the console
-                i++;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // for (int i = 0; i < totalSystemDocs.length; i++) {
+        // totalSystemDocs[i] = new doc();
+        // }
+        // // mohamed tests
+        // // here--------------------------------------------------------------
+        // // my temp database
+        // try (BufferedReader br = new BufferedReader(new
+        // FileReader("LinksToTestRanker.txt"))) {
+        // String line;
+        // int i = 0;
+        // while ((line = br.readLine()) != null) {
+        // // Process each line here
+        // totalSystemDocs[i].url = line;
+        // // System.out.println(line); // For example, print each line to the console
+        // i++;
+        // }
+        // } catch (IOException e) {
+        // e.printStackTrace();
+        // }
 
-        wrds = new word[3];
-        waitTillCalc = true;
-        for (int i = 0; i < wrds.length; i++) {
-            wrds[i] = new word(); // Create a new word object
-            wrds[i].docs = new doc[10]; // Initialize the docs array with a size of 10
+        // waitTillFillingDocsAndWrds = true;
+        // while (waitTillFillingDocsAndWrds) {
+        // try {
+        // TimeUnit.SECONDS.sleep(1); // Delay for 5 seconds
+        // } catch (InterruptedException e) {
+        // e.printStackTrace();
+        // }
+        // }
 
-            // Initialize each doc object within the docs array
-            for (int j = 0; j < wrds[i].docs.length; j++) {
-                wrds[i].docs[j] = new doc(); // Create a new doc object
-                wrds[i].docs[j].Tf_IDF_total = 0;
-                wrds[i].docs[j].TF_IDF = 0;
-                wrds[i].docs[j].TF = 0;
-                wrds[i].docs[j].PageRank = 0;
-            }
-        }
-        wrds[0].DF = 10.0 / 30.0;
-        wrds[0].wrd = "football";
-        wrds[0].docs[0].url = "https://www.bbc.com/sport/football";
-        wrds[0].docs[1].url = "https://www.bbc.com/business";
-        wrds[0].docs[2].url = "https://www.skysports.com/football";
-        wrds[0].docs[3].url = "https://www.facebook.com/BBCSPORT";
-        wrds[0].docs[4].url = "https://www.bbc.com/weather";
-        wrds[0].docs[5].url = "https://www.aljazeera.com/sports/liveblog/2024/4/23/live-arsenal-vs-chelsea-premier-league-football";
-        wrds[0].docs[6].url = "https://en.wikipedia.org/wiki/Association_football";
-        wrds[0].docs[7].url = "https://www.goal.com/en/live-scores";
-        wrds[0].docs[8].url = "https://onefootball.com/";
-        wrds[0].docs[9].url = "https://www.bbc.com/sport/football/scores-fixtures";
-        for (int i = 0; i < 10; i++) {
-            wrds[0].docs[i].TF = calc_tf(wrds[0].wrd, wrds[0].docs[i].url);
-            // System.out.println(wrds[0].docs[i].TF);
-            wrds[0].docs[i].TF_IDF = calc_tfIdf(wrds[0].docs[i].url, wrds[0].DF,
-                    wrds[0].docs[i].TF);
-        }
+        // waitTillCalc = true;
+        // for (int i = 0; i < querySize; i++) {
+        // wrds[i] = new word(); // Create a new word object
+        // wrds[i].docs = new doc[10]; // Initialize the docs array with a size of 10
 
-        wrds[1].DF = 10.0 / 30.0;
-        wrds[1].wrd = "food";
-        wrds[1].docs[0].url = "https://en.wikipedia.org/wiki/Food";
-        wrds[1].docs[1].url = "https://www.fao.org/home/en";
-        wrds[1].docs[2].url = "https://www.food.com/";
-        wrds[1].docs[3].url = "https://www.nationalgeographic.org/article/food/";
-        wrds[1].docs[4].url = "https://www.foodnetwork.com/";
-        wrds[1].docs[5].url = "https://dictionary.cambridge.org/dictionary/english/food";
-        wrds[1].docs[6].url = "https://www.merriam-webster.com/dictionary/food";
-        wrds[1].docs[7].url = "https://www.reddit.com/r/food/";
-        wrds[1].docs[8].url = "https://www.buzzfeed.com/food";
-        wrds[1].docs[9].url = "https://www.fda.gov/food";
-        for (int i = 0; i < 10; i++) {
-            wrds[1].docs[i].TF = calc_tf(wrds[1].wrd, wrds[1].docs[i].url);
-            // System.out.println(wrds[0].docs[i].TF);
-            wrds[1].docs[i].TF_IDF = calc_tfIdf(wrds[1].docs[i].url, wrds[1].DF,
-                    wrds[1].docs[i].TF);
-        }
-
-        wrds[2].DF = 10.0 / 30.0;
-        wrds[2].wrd = "games";
-        wrds[2].docs[0].url = "https://en.wikipedia.org/wiki/Video_game";
-        wrds[2].docs[1].url = "https://www.amazon.com/computer-video-games-hardware-accessories/b?ie=UTF8&node=468642";
-        wrds[2].docs[2].url = "https://www.metacritic.com/browse/game/";
-        wrds[2].docs[3].url = "https://www.gamespot.com/";
-        wrds[2].docs[4].url = "https://www.wired.com/tag/video-games/";
-        wrds[2].docs[5].url = "https://www.metacritic.com/browse/game/all/all/current-year/";
-        wrds[2].docs[6].url = "https://www.circana.com/industry-expertise/video-games/";
-        wrds[2].docs[7].url = "https://videogamesplus.ca/";
-        wrds[2].docs[8].url = "https://www.target.com/c/video-games/-/N-5xtg5";
-        wrds[2].docs[9].url = "https://en.wikipedia.org/wiki/Video_game";
-        for (int i = 0; i < 10; i++) {
-            wrds[2].docs[i].TF = calc_tf(wrds[2].wrd, wrds[2].docs[i].url);
-            wrds[2].docs[i].TF_IDF = calc_tfIdf(wrds[2].docs[i].url, wrds[2].DF,
-                    wrds[2].docs[i].TF);
-        }
-        System.out.println("NowCalculating Pageranks");
-        calc_pageRank(totalSystemDocs);
-        // assign each url in words with its page rank
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < wrds[i].docs.length; j++) {
-                for (int k = 0; k < totalSystemDocs.length; k++) {
-                    if (wrds[i].docs[j].url.equals(totalSystemDocs[k].url)) {
-                        wrds[i].docs[j].PageRank = totalSystemDocs[k].PageRank;
-                    }
-                }
-            }
-        }
-        System.out.println("finished");
-        waitTillCalc = false;
+        // // Initialize each doc object within the docs array
+        // for (int j = 0; j < wrds[i].docs.length; j++) {
+        // wrds[i].docs[j] = new doc(); // Create a new doc object
+        // wrds[i].docs[j].Tf_IDF_total = 0;
+        // wrds[i].docs[j].TF_IDF = 0;
+        // wrds[i].docs[j].TF = 0;
+        // wrds[i].docs[j].PageRank = 0;
+        // }
+        // }
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // calc pageRank here
+        // System.out.println("NowCalculating Pageranks");
+        // doc[] Docs = ResuledDocs.toArray(new doc[ResuledDocs.size()]);
+        // calc_pageRank(Docs);
+        // // assign each url in words with its page rank
+        // // for (int i = 0; i < 3; i++) {
+        // // for (int j = 0; j < wrds[i].docs.length; j++) {
+        // // for (int k = 0; k < totalSystemDocs.length; k++) {
+        // // if (wrds[i].docs[j].url.equals(totalSystemDocs[k].url)) {
+        // // wrds[i].docs[j].PageRank = totalSystemDocs[k].PageRank;
+        // // }
+        // // }
+        // // }
+        // // }
+        // System.out.println("finished");
+        // waitTillCalc = false;
         // --------------------------------------------------------------------------------
     }
 
@@ -280,93 +243,163 @@ public class SearchEngineServer {
             if ("GET".equals(exchange.getRequestMethod())) {
                 String query = exchange.getRequestURI().getQuery();// query words from the user in a string form
                 String[] finalList = null;
-                while (waitTillCalc) {
-                    try {
-                        TimeUnit.SECONDS.sleep(1); // Delay for 5 seconds
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                ResuledDocs = new Vector<>();
+                queryWords = new Vector<>();
+
+                // while (waitTillCalc) {
+                // try {
+                // TimeUnit.SECONDS.sleep(1); // Delay for 5 seconds
+                // } catch (InterruptedException e) {
+                // e.printStackTrace();
+                // }
+                // }
+                String[] qWrds = query.split(" ");
+                querySize = qWrds.length;
+
+                // get resuled List and fill the vector
+
+                // filling queryWords
+                for (int i = 0; i < querySize; i++) {
+                    word w = new word();
+                    w.wrd = qWrds[i];
+                    Vector<doc> d = new Vector<>();
+                    // fill each word with its docs(get docs related to each word)
+                    // ...............
+                    ///////////////////////////////////////////////////////////
+                    doc[] dArr = d.toArray(new doc[d.size()]);
+                    w.docs = dArr;
+                    // assign to each word its df
+                    // w.DF =
+                    queryWords.add(w);
+                }
+
+                // waitTillFillingDocsAndWrds = false;
+
+                // Getting Common Docs:
+                // Initialize with the first vector of strings
+                Vector<doc> vec = new Vector<>();
+                // Add all elements from the array to the Vector
+                Collections.addAll(vec, queryWords.get(0).docs);
+                Vector<doc> commonDcs = new Vector<>(vec);
+
+                // Iterate over remaining vectors
+                for (int i = 1; i < queryWords.size(); i++) {
+                    Vector<doc> vect = new Vector<>();
+                    // Add all elements from the array to the Vector
+                    Collections.addAll(vect, queryWords.get(i).docs);
+                    Vector<doc> currentDcs = vect;
+                    // Retain only the common strings between the current vector and the
+                    // commonStrings
+                    commonDcs.retainAll(currentDcs);
+                }
+
+                // calc pagearank
+                System.out.println("NowCalculating Pageranks");
+                doc[] Docs = ResuledDocs.toArray(new doc[ResuledDocs.size()]);
+                calc_pageRank(Docs);
+                // assign each url in words with its page rank
+                // for (int i = 0; i < 3; i++) {
+                // for (int j = 0; j < wrds[i].docs.length; j++) {
+                // for (int k = 0; k < totalSystemDocs.length; k++) {
+                // if (wrds[i].docs[j].url.equals(totalSystemDocs[k].url)) {
+                // wrds[i].docs[j].PageRank = totalSystemDocs[k].PageRank;
+                // }
+                // }
+                // }
+                // }
+                System.out.println("finished");
+                word[] wordsArray = queryWords.toArray(new word[queryWords.size()]);
+
+                // Convert the second vector of docs to an array
+                doc[] docsArray = commonDcs.toArray(new doc[commonDcs.size()]);
+                Ranker(wordsArray, docsArray);
+                finalList = new String[Docs.length];// modify the size to be the final list size
+                for (int i = 0; i < Docs.length; i++) {
+                    finalList[i] = docsArray[i].url;
                 }
                 // Perform operations based on the query
-                word[] words_have_common_docs;
-                if ("football".equals(query)) {
-                    words_have_common_docs = new word[1];
-                    words_have_common_docs[0] = new word();
-                    words_have_common_docs[0] = wrds[0];
-                    doc[] Docs = new doc[words_have_common_docs[0].docs.length];
-                    for (int i = 0; i < Docs.length; i++) {
-                        Docs[i] = new doc();
-                    }
-                    Ranker(words_have_common_docs, Docs);
-                    finalList = new String[Docs.length];// modify the size to be the final list size
-                    for (int i = 0; i < Docs.length; i++) {
-                        finalList[i] = Docs[i].url;
-                    }
-                    // for (String url : finalList) {
-                    // System.out.println(url);
-                    // }
-                } else if ("food".equals(query)) {
-                    words_have_common_docs = new word[1];
-                    words_have_common_docs[0] = new word();
-                    words_have_common_docs[0] = wrds[1];
-                    doc[] Docs = new doc[words_have_common_docs[0].docs.length];
-                    for (int i = 0; i < Docs.length; i++) {
-                        Docs[i] = new doc();
-                    }
-                    Ranker(words_have_common_docs, Docs);
-                    finalList = new String[Docs.length];// modify the size to be the final list size
-                    for (int i = 0; i < Docs.length; i++) {
-                        finalList[i] = Docs[i].url;
-                    }
-                } else {
-                    if ("Games".equals(query)) {
-                        words_have_common_docs = new word[1];
-                        words_have_common_docs[0] = new word();
-                        words_have_common_docs[0] = wrds[2];
-                        doc[] Docs = new doc[words_have_common_docs[0].docs.length];
-                        for (int i = 0; i < Docs.length; i++) {
-                            Docs[i] = new doc();
-                        }
-                        Ranker(words_have_common_docs, Docs);
-                        finalList = new String[Docs.length];// modify the size to be the final list size
-                        for (int i = 0; i < Docs.length; i++) {
-                            finalList[i] = Docs[i].url;
-                        }
-                    } else {
-                        words_have_common_docs = new word[2];
-                        words_have_common_docs[0] = new word();
-                        words_have_common_docs[0].DF = 3;
-                        words_have_common_docs[0].wrd = "football";
-                        words_have_common_docs[0].docs = new doc[3];
-                        words_have_common_docs[0].docs[0] = new doc();
-                        words_have_common_docs[0].docs[0] = wrds[0].docs[0];
-                        words_have_common_docs[0].docs[1] = new doc();
-                        words_have_common_docs[0].docs[1] = wrds[0].docs[1];
-                        words_have_common_docs[0].docs[2] = new doc();
-                        words_have_common_docs[0].docs[2] = wrds[0].docs[2];
+                // if ("football".equals(query)) {
+                // words_have_common_docs = new word[1];
+                // words_have_common_docs[0] = new word();
+                // words_have_common_docs[0] = wrds[0];
+                // doc[] Docs = new doc[words_have_common_docs[0].docs.length];
+                // for (int i = 0; i < Docs.length; i++) {
+                // Docs[i] = new doc();
+                // }
+                // Ranker(words_have_common_docs, Docs);
+                // finalList = new String[Docs.length];// modify the size to be the final list
+                // size
+                // for (int i = 0; i < Docs.length; i++) {
+                // finalList[i] = Docs[i].url;
+                // }
+                // // for (String url : finalList) {
+                // // System.out.println(url);
+                // // }
+                // } else if ("food".equals(query)) {
+                // words_have_common_docs = new word[1];
+                // words_have_common_docs[0] = new word();
+                // words_have_common_docs[0] = wrds[1];
+                // doc[] Docs = new doc[words_have_common_docs[0].docs.length];
+                // for (int i = 0; i < Docs.length; i++) {
+                // Docs[i] = new doc();
+                // }
+                // Ranker(words_have_common_docs, Docs);
+                // finalList = new String[Docs.length];// modify the size to be the final list
+                // size
+                // for (int i = 0; i < Docs.length; i++) {
+                // finalList[i] = Docs[i].url;
+                // }
+                // } else {
+                // if ("Games".equals(query)) {
+                // words_have_common_docs = new word[1];
+                // words_have_common_docs[0] = new word();
+                // words_have_common_docs[0] = wrds[2];
+                // doc[] Docs = new doc[words_have_common_docs[0].docs.length];
+                // for (int i = 0; i < Docs.length; i++) {
+                // Docs[i] = new doc();
+                // }
+                // Ranker(words_have_common_docs, Docs);
+                // finalList = new String[Docs.length];// modify the size to be the final list
+                // size
+                // for (int i = 0; i < Docs.length; i++) {
+                // finalList[i] = Docs[i].url;
+                // }
+                // } else {
+                // words_have_common_docs = new word[2];
+                // words_have_common_docs[0] = new word();
+                // words_have_common_docs[0].DF = 3;
+                // words_have_common_docs[0].wrd = "football";
+                // words_have_common_docs[0].docs = new doc[3];
+                // words_have_common_docs[0].docs[0] = new doc();
+                // words_have_common_docs[0].docs[0] = wrds[0].docs[0];
+                // words_have_common_docs[0].docs[1] = new doc();
+                // words_have_common_docs[0].docs[1] = wrds[0].docs[1];
+                // words_have_common_docs[0].docs[2] = new doc();
+                // words_have_common_docs[0].docs[2] = wrds[0].docs[2];
 
-                        words_have_common_docs[1] = new word();
-                        words_have_common_docs[1].DF = 3;
-                        words_have_common_docs[1].wrd = "Games";
-                        words_have_common_docs[1].docs = new doc[3];
-                        words_have_common_docs[1].docs[0] = new doc();
-                        words_have_common_docs[1].docs[0] = wrds[2].docs[0];
-                        words_have_common_docs[1].docs[1] = new doc();
-                        words_have_common_docs[1].docs[1] = wrds[2].docs[1];
-                        words_have_common_docs[1].docs[2] = new doc();
-                        words_have_common_docs[1].docs[2] = wrds[2].docs[2];
+                // words_have_common_docs[1] = new word();
+                // words_have_common_docs[1].DF = 3;
+                // words_have_common_docs[1].wrd = "Games";
+                // words_have_common_docs[1].docs = new doc[3];
+                // words_have_common_docs[1].docs[0] = new doc();
+                // words_have_common_docs[1].docs[0] = wrds[2].docs[0];
+                // words_have_common_docs[1].docs[1] = new doc();
+                // words_have_common_docs[1].docs[1] = wrds[2].docs[1];
+                // words_have_common_docs[1].docs[2] = new doc();
+                // words_have_common_docs[1].docs[2] = wrds[2].docs[2];
 
-                        doc[] Docs = new doc[words_have_common_docs[0].docs.length];
-                        for (int i = 0; i < Docs.length; i++) {
-                            Docs[i] = new doc();
-                        }
-                        Ranker(words_have_common_docs, Docs);
-                        finalList = new String[Docs.length];// modify the size to be the final list size
-                        for (int i = 0; i < Docs.length; i++) {
-                            finalList[i] = Docs[i].url;
-                        }
-                    }
-                }
+                // doc[] Docs = new doc[words_have_common_docs[0].docs.length];
+                // for (int i = 0; i < Docs.length; i++) {
+                // Docs[i] = new doc();
+                // }
+                // Ranker(words_have_common_docs, Docs);
+                // finalList = new String[Docs.length];// modify the size to be the final list
+                // size
+                // for (int i = 0; i < Docs.length; i++) {
+                // finalList[i] = Docs[i].url;
+                // }
+                // }
+                // }
 
                 // Send response to the frontend
                 try {
@@ -525,11 +558,14 @@ public class SearchEngineServer {
     }
 
     // Ranker function
-    // note this function must take all the docs common between all words in query, but why??
-    // Answer: because each doc related to a word, so for example: 
-    // given a query of two words word1 and word2 and a doc related to word1 but not to word2
-    // so doc has a tf_idf to word1, but has no tf_idf related to word2 
-    // (if we assume the tf_idf = 0 ----> this also makes a problem which is we can't get a tf_idf from a doc doesn't related to a word)
+    // note this function must take all the docs common between all words in query,
+    // but why??
+    // Answer: because each doc related to a word, so for example:
+    // given a query of two words word1 and word2 and a doc related to word1 but not
+    // to word2
+    // so doc has a tf_idf to word1, but has no tf_idf related to word2
+    // (if we assume the tf_idf = 0 ----> this also makes a problem which is we
+    // can't get a tf_idf from a doc doesn't related to a word)
     public static void Ranker(word[] words, doc[] ds) {
         for (int i = 0; i < ds.length; i++) {
             ds[i].Tf_IDF_total = words[0].docs[i].TF_IDF;
