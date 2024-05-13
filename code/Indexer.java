@@ -1,8 +1,10 @@
 import java.nio.file.Files;
 import org.jsoup.Jsoup;
 import java.util.TreeMap;
-import java.util.TreeSet;
+//import java.util.TreeSet;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -11,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import java.sql.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -24,29 +27,45 @@ class doc {
     double Tf_IDF_total;// if there is more than one word
     double PageRank;
 }
+class word {
+    String wrd;
+    doc[] docs;
+    double DF;// norm
+}
+class Locations{
+	String type;
+	Vector<Integer> locations;
+	Locations(String kind){
+		type = kind;
+		locations=new Vector<Integer>();
+	}
+};
 public class Indexer {
 	static mysqlServer obj;
 	static ranker obj2;
-	static TreeMap<String,TreeMap<String,TreeSet<Integer>>> invertedfile;
+	static TreeMap<String,TreeMap<String,Locations>> invertedfile;
 	public static void main(String[] args) {
 		obj= new mysqlServer();
+		invertedfile = new TreeMap<String,TreeMap<String,Locations>>();
 		Vector<String> urls=new Vector<String>();
 		boolean b = obj.LoadDocuments(urls);
 		if(b) {
 			for(int i=0;i<urls.size();i++) {
 				indexDocument(urls.get(i));
 				obj.UpdateDocument(urls.get(i), true);
+				System.out.printf("document %d is indexed",i+1);
 			}
 		}
+		insertIntoDatabase();
 		obj.CloseConnection();
 		/*String path = "D://loadedDocument//index3.html";
 		String html = LoadDocument(path);
 		String[] types=new String[8];
 		String[] words = ParseDocument(html,types);
 		for(int i=0;i<words.length;i++) {
-			System.out.println(words[i].replaceAll("\\.$", ""));
-		}
-		for(int i=0;i<types.length;i++) {
+			System.out.println(words[i]);
+		}*/
+		/*for(int i=0;i<types.length;i++) {
 			if(types[i]!=null) {
 				System.out.println(types[i]);	
 			}
@@ -103,36 +122,71 @@ public class Indexer {
 	}
 	static String[] ParseDocument(String html,String[] Types) { // Types contains title and headings
 		Document doc = Jsoup.parse(html);
-		Types[0] = doc.body().getElementsByTag("title").text();
-		Types[1] = doc.body().getElementsByTag("h1").text();
-		Types[2] = doc.body().getElementsByTag("h2").text();
-		Types[3] = doc.body().getElementsByTag("h3").text();
-		Types[4] = doc.body().getElementsByTag("h4").text();
-		Types[5] = doc.body().getElementsByTag("h5").text();
-		Types[6] = doc.body().getElementsByTag("h6").text();
-		Types[7] = doc.body().getElementsByTag("a").text();
-		String content = doc.text();
+		Types[0] = doc.body().getElementsByTag("title").text().toLowerCase();
+		Types[1] = doc.body().getElementsByTag("h1").text().toLowerCase();
+		Types[2] = doc.body().getElementsByTag("h2").text().toLowerCase();
+		Types[3] = doc.body().getElementsByTag("h3").text().toLowerCase();
+		Types[4] = doc.body().getElementsByTag("h4").text().toLowerCase();
+		Types[5] = doc.body().getElementsByTag("h5").text().toLowerCase();
+		Types[6] = doc.body().getElementsByTag("h6").text().toLowerCase();
+		Types[7] = doc.body().getElementsByTag("a").text().toLowerCase();
+		String content = doc.text().toLowerCase().replaceAll("[-_?!.,;':(){}+*/1234567890]", " ");
 		String[] words = content.split("\\s+");
 		return words;
+	}
+	static void printUrls(String html) {
+        Document doc = Jsoup.parse(html);
+
+        // Select all anchor elements
+        Elements anchorElements = doc.select("a");
+
+        // Iterate over the anchor elements and print the URL and text
+        for (Element anchor : anchorElements) {
+            String url = anchor.attr("href");
+            String text = anchor.text();
+            System.out.println("URL: " + url);
+            System.out.println("Text: " + text);
+        }
 	}
 	@SuppressWarnings("static-access")
 	static void indexDocument(String url) {
 		String html = DownloadDocument(url);
 		String[] types = new String[8];
 		String[] textplain = ParseDocument(html,types);
-		HashSet<String> insertedWords =new HashSet<>();
+		//HashSet<String> insertedWords =new HashSet<>();
 		for(int i=0;i<textplain.length;i++) {
-			if(insertedWords.contains(textplain[i])) {
-                obj.InsertPosition(textplain[i], url, i);
+			if(invertedfile.containsKey(textplain[i])) {
+                //obj.InsertPosition(textplain[i], url, i);
+				invertedfile.get(textplain[i]).get(url).locations.add(i);
 			}
 			else {
-				insertedWords.add(textplain[i]);
-				double tf=obj2.calc_tf(textplain[i], url);
-				double tf_idf=obj2.calc_tfIdf(url, 500.0, tf);
 				String type=FindType(textplain[i],types);
-				obj.InsertWordinDocument(textplain[i],url,tf_idf,type);
+				invertedfile.put(textplain[i],new TreeMap<String,Locations>());
+				invertedfile.get(textplain[i]).put(url,new Locations(type));
+				invertedfile.get(textplain[i]).get(url).locations.add(i);
+				//double tf=obj2.calc_tf(textplain[i], url);
+				//double tf_idf=obj2.calc_tfIdf(url, 5000.0, tf);
+				//obj.InsertWordinDocument(textplain[i],url,tf_idf,type);
+				//obj.InsertPosition(textplain[i], url, i);
 			}
 		}
+	}
+	static void insertIntoDatabase() {
+        for (Map.Entry<String, TreeMap<String,Locations>> entry : invertedfile.entrySet()) {
+            String word = entry.getKey();
+            TreeMap<String,Locations> documents = entry.getValue();
+            double df = documents.size();
+            for (Map.Entry<String, Locations> entry2 : documents.entrySet()) {
+                String url = entry2.getKey();
+                Locations locs = entry2.getValue();
+                double tf=obj2.calc_tf(word, url);
+                double tf_idf=obj2.calc_tfIdf(url, df, tf);
+                obj.InsertWordinDocument(word,url,tf_idf,locs.type);
+                for (int i=0;i<locs.locations.size();i++) {
+                	obj.InsertPosition(word, url, i);
+                }
+            }
+        }
 	}
 	static String FindType(String word,String[] Types) {
 		if(Types[0]!=null &&Types[0].contains(word)) {
@@ -253,15 +307,16 @@ class mysqlServer {
 		}
 		return false;
 	}// make document indexed or not
-	boolean RetrieveDocuments(String word,Vector<String> documents,Vector<Double> TF_IDF,Vector<String> type) {
-		String selectQuery = "SELECT document,tf,type FROM Documents WHERE word = "+word;
+	boolean RetrieveDocuments(String word,Vector<doc>vec) {
+		String selectQuery = "SELECT document,tf_idf FROM Documents WHERE word = "+word;
         try {
     		Statement selectStatement = connection.createStatement();
     		ResultSet resultSet = selectStatement.executeQuery(selectQuery);
     		while (resultSet.next()) {
-    		    documents.add(resultSet.getString("document"));
-    		    TF_IDF.add(resultSet.getDouble("tf_idf"));
-    		    type.add(resultSet.getString("type"));
+    			doc tmp = new doc();
+    		    tmp.url=resultSet.getString("document");
+    		    tmp.Tf_IDF_total=resultSet.getDouble("tf_idf");
+    		    vec.add(tmp);
     		}
     		resultSet.close();
     		selectStatement.close();	
@@ -303,12 +358,66 @@ class mysqlServer {
 	
 };
 class QueryProcessor{
-	void GetSearchQuery() {}
-	void GetDocumentsForWord() {}
+	mysqlServer obj;
+	void OpenConnection(){
+		obj = new mysqlServer();
+	}
+	void CloseConnection(){
+		obj.CloseConnection();
+	}
+	Vector<doc> GetSearchQuery(String query) {
+		String[] words=(query.toLowerCase()).split("\\s+");
+		Vector<doc> result=new Vector<doc>();
+		Vector<doc> tmp = new Vector<doc>();
+		int i=0;
+		while(IsStopWord(words[i])&&i<words.length) {
+			i++;
+		}
+		if(i<words.length) {
+			GetDocumentsForWord(words[i],result);
+			i++;
+			for(;i<words.length;i++) {
+				if(!IsStopWord(words[i])) {
+					GetDocumentsForWord(words[i].toLowerCase(),tmp);
+					result=getcommon(result,tmp);	
+				}
+			}	
+		}
+		return result;
+	}// it will find documents and send them to ranker 
+	void GetDocumentsForWord(String word,Vector<doc> vec) {
+		
+	    obj.RetrieveDocuments(word.toLowerCase(),vec);
+	}
+	Vector<doc> getcommon(Vector<doc>first,Vector<doc>second) {
+		Vector<doc> result = new Vector<doc>();
+		for(int i=0;i<first.size();i++) {
+			for(int j=0;j<second.size();j++) {
+				if(first.get(i).url==second.get(j).url) {
+					doc tmp = new doc();
+					tmp.url=first.get(i).url;
+					tmp.Tf_IDF_total=first.get(i).Tf_IDF_total+second.get(j).Tf_IDF_total;
+					result.add(tmp);
+					j=second.size();
+				}
+			}
+		}
+		return result;
+	}
+	public boolean IsStopWord(String word) {
+		String[] stopWords1 = { "a", "and", "the","an","are","as","at","be","but","by","for","if","in","into","is","it","no","not","of","on","or","such","that","their","then","there","these","they","this","to","was","will","with"};
+		String[] stopWords2 = {"0o", "0s", "3a", "3b", "3d", "6b", "6o", "a", "a1", "a2", "a3", "a4", "ab", "able", "about", "above", "abst", "ac", "accordance", "according", "accordingly", "across", "act", "actually", "ad", "added", "adj", "ae", "af", "affected", "affecting", "affects", "after", "afterwards", "ag", "again", "against", "ah", "ain", "ain't", "aj", "al", "all", "allow", "allows", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "amongst", "amoungst", "amount", "an", "and", "announce", "another", "any", "anybody", "anyhow", "anymore", "anyone", "anything", "anyway", "anyways", "anywhere", "ao", "ap", "apart", "apparently", "appear", "appreciate", "appropriate", "approximately", "ar", "are", "aren", "arent", "aren't", "arise", "around", "as", "a's", "aside", "ask", "asking", "associated", "at", "au", "auth", "av", "available", "aw", "away", "awfully", "ax", "ay", "az", "b", "b1", "b2", "b3", "ba", "back", "bc", "bd", "be", "became", "because", "become", "becomes", "becoming", "been", "before", "beforehand", "begin", "beginning", "beginnings", "begins", "behind", "being", "believe", "below", "beside", "besides", "best", "better", "between", "beyond", "bi", "bill", "biol", "bj", "bk", "bl", "bn", "both", "bottom", "bp", "br", "brief", "briefly", "bs", "bt", "bu", "but", "bx", "by", "c", "c1", "c2", "c3", "ca", "call", "came", "can", "cannot", "cant", "can't", "cause", "causes", "cc", "cd", "ce", "certain", "certainly", "cf", "cg", "ch", "changes", "ci", "cit", "cj", "cl", "clearly", "cm", "c'mon", "cn", "co", "com", "come", "comes", "con", "concerning", "consequently", "consider", "considering", "contain", "containing", "contains", "corresponding", "could", "couldn", "couldnt", "couldn't", "course", "cp", "cq", "cr", "cry", "cs", "c's", "ct", "cu", "currently", "cv", "cx", "cy", "cz", "d", "d2", "da", "date", "dc", "dd", "de", "definitely", "describe", "described", "despite", "detail", "df", "di", "did", "didn", "didn't", "different", "dj", "dk", "dl", "do", "does", "doesn", "doesn't", "doing", "don", "done", "don't", "down", "downwards", "dp", "dr", "ds", "dt", "du", "due", "during", "dx", "dy", "e", "e2", "e3", "ea", "each", "ec", "ed", "edu", "ee", "ef", "effect", "eg", "ei", "eight", "eighty", "either", "ej", "el", "eleven", "else", "elsewhere", "em", "empty", "en", "end", "ending", "enough", "entirely", "eo", "ep", "eq", "er", "es", "especially", "est", "et", "et-al", "etc", "eu", "ev", "even", "ever", "every", "everybody", "everyone", "everything", "everywhere", "ex", "exactly", "example", "except", "ey", "f", "f2", "fa", "far", "fc", "few", "ff", "fi", "fifteen", "fifth", "fify", "fill", "find", "fire", "first", "five", "fix", "fj", "fl", "fn", "fo", "followed", "following", "follows", "for", "former", "formerly", "forth", "forty", "found", "four", "fr", "from", "front", "fs", "ft", "fu", "full", "further", "furthermore", "fy", "g", "ga", "gave", "ge", "get", "gets", "getting", "gi", "give", "given", "gives", "giving", "gj", "gl", "go", "goes", "going", "gone", "got", "gotten", "gr", "greetings", "gs", "gy", "h", "h2", "h3", "had", "hadn", "hadn't", "happens", "hardly", "has", "hasn", "hasnt", "hasn't", "have", "haven", "haven't", "having", "he", "hed", "he'd", "he'll", "hello", "help", "hence", "her", "here", "hereafter", "hereby", "herein", "heres", "here's", "hereupon", "hers", "herself", "hes", "he's", "hh", "hi", "hid", "him", "himself", "his", "hither", "hj", "ho", "home", "hopefully", "how", "howbeit", "however", "how's", "hr", "hs", "http", "hu", "hundred", "hy", "i", "i2", "i3", "i4", "i6", "i7", "i8", "ia", "ib", "ibid", "ic", "id", "i'd", "ie", "if", "ig", "ignored", "ih", "ii", "ij", "il", "i'll", "im", "i'm", "immediate", "immediately", "importance", "important", "in", "inasmuch", "inc", "indeed", "index", "indicate", "indicated", "indicates", "information", "inner", "insofar", "instead", "interest", "into", "invention", "inward", "io", "ip", "iq", "ir", "is", "isn", "isn't", "it", "itd", "it'd", "it'll", "its", "it's", "itself", "iv", "i've", "ix", "iy", "iz", "j", "jj", "jr", "js", "jt", "ju", "just", "k", "ke", "keep", "keeps", "kept", "kg", "kj", "km", "know", "known", "knows", "ko", "l", "l2", "la", "largely", "last", "lately", "later", "latter", "latterly", "lb", "lc", "le", "least", "les", "less", "lest", "let", "lets", "let's", "lf", "like", "liked", "likely", "line", "little", "lj", "ll", "ll", "ln", "lo", "look", "looking", "looks", "los", "lr", "ls", "lt", "ltd", "m", "m2", "ma", "made", "mainly", "make", "makes", "many", "may", "maybe", "me", "mean", "means", "meantime", "meanwhile", "merely", "mg", "might", "mightn", "mightn't", "mill", "million", "mine", "miss", "ml", "mn", "mo", "more", "moreover", "most", "mostly", "move", "mr", "mrs", "ms", "mt", "mu", "much", "mug", "must", "mustn", "mustn't", "my", "myself", "n", "n2", "na", "name", "namely", "nay", "nc", "nd", "ne", "near", "nearly", "necessarily", "necessary", "need", "needn", "needn't", "needs", "neither", "never", "nevertheless", "new", "next", "ng", "ni", "nine", "ninety", "nj", "nl", "nn", "no", "nobody", "non", "none", "nonetheless", "noone", "nor", "normally", "nos", "not", "noted", "nothing", "novel", "now", "nowhere", "nr", "ns", "nt", "ny", "o", "oa", "ob", "obtain", "obtained", "obviously", "oc", "od", "of", "off", "often", "og", "oh", "oi", "oj", "ok", "okay", "ol", "old", "om", "omitted", "on", "once", "one", "ones", "only", "onto", "oo", "op", "oq", "or", "ord", "os", "ot", "other", "others", "otherwise", "ou", "ought", "our", "ours", "ourselves", "out", "outside", "over", "overall", "ow", "owing", "own", "ox", "oz", "p", "p1", "p2", "p3", "page", "pagecount", "pages", "par", "part", "particular", "particularly", "pas", "past", "pc", "pd", "pe", "per", "perhaps", "pf", "ph", "pi", "pj", "pk", "pl", "placed", "please", "plus", "pm", "pn", "po", "poorly", "possible", "possibly", "potentially", "pp", "pq", "pr", "predominantly", "present", "presumably", "previously", "primarily", "probably", "promptly", "proud", "provides", "ps", "pt", "pu", "put", "py", "q", "qj", "qu", "que", "quickly", "quite", "qv", "r", "r2", "ra", "ran", "rather", "rc", "rd", "re", "readily", "really", "reasonably", "recent", "recently", "ref", "refs", "regarding", "regardless", "regards", "related", "relatively", "research", "research-articl", "respectively", "resulted", "resulting", "results", "rf", "rh", "ri", "right", "rj", "rl", "rm", "rn", "ro", "rq", "rr", "rs", "rt", "ru", "run", "rv", "ry", "s", "s2", "sa", "said", "same", "saw", "say", "saying", "says", "sc", "sd", "se", "sec", "second", "secondly", "section", "see", "seeing", "seem", "seemed", "seeming", "seems", "seen", "self", "selves", "sensible", "sent", "serious", "seriously", "seven", "several", "sf", "shall", "shan", "shan't", "she", "shed", "she'd", "she'll", "shes", "she's", "should", "shouldn", "shouldn't", "should've", "show", "showed", "shown", "showns", "shows", "si", "side", "significant", "significantly", "similar", "similarly", "since", "sincere", "six", "sixty", "sj", "sl", "slightly", "sm", "sn", "so", "some", "somebody", "somehow", "someone", "somethan", "something", "sometime", "sometimes", "somewhat", "somewhere", "soon", "sorry", "sp", "specifically", "specified", "specify", "specifying", "sq", "sr", "ss", "st", "still", "stop", "strongly", "sub", "substantially", "successfully", "such", "sufficiently", "suggest", "sup", "sure", "sy", "system", "sz", "t", "t1", "t2", "t3", "take", "taken", "taking", "tb", "tc", "td", "te", "tell", "ten", "tends", "tf", "th", "than", "thank", "thanks", "thanx", "that", "that'll", "thats", "that's", "that've", "the", "their", "theirs", "them", "themselves", "then", "thence", "there", "thereafter", "thereby", "thered", "therefore", "therein", "there'll", "thereof", "therere", "theres", "there's", "thereto", "thereupon", "there've", "these", "they", "theyd", "they'd", "they'll", "theyre", "they're", "they've", "thickv", "thin", "think", "third", "this", "thorough", "thoroughly", "those", "thou", "though", "thoughh", "thousand", "three", "throug", "through", "throughout", "thru", "thus", "ti", "til", "tip", "tj", "tl", "tm", "tn", "to", "together", "too", "took", "top", "toward", "towards", "tp", "tq", "tr", "tried", "tries", "truly", "try", "trying", "ts", "t's", "tt", "tv", "twelve", "twenty", "twice", "two", "tx", "u", "u201d", "ue", "ui", "uj", "uk", "um", "un", "under", "unfortunately", "unless", "unlike", "unlikely", "until", "unto", "uo", "up", "upon", "ups", "ur", "us", "use", "used", "useful", "usefully", "usefulness", "uses", "using", "usually", "ut", "v", "va", "value", "various", "vd", "ve", "ve", "very", "via", "viz", "vj", "vo", "vol", "vols", "volumtype", "vq", "vs", "vt", "vu", "w", "wa", "want", "wants", "was", "wasn", "wasnt", "wasn't", "way", "we", "wed", "we'd", "welcome", "well", "we'll", "well-b", "went", "were", "we're", "weren", "werent", "weren't", "we've", "what", "whatever", "what'll", "whats", "what's", "when", "whence", "whenever", "when's", "where", "whereafter", "whereas", "whereby", "wherein", "wheres", "where's", "whereupon", "wherever", "whether", "which", "while", "whim", "whither", "who", "whod", "whoever", "whole", "who'll", "whom", "whomever", "whos", "who's", "whose", "why", "why's", "wi", "widely", "will", "willing", "wish", "with", "within", "without", "wo", "won", "wonder", "wont", "won't", "words", "world", "would", "wouldn", "wouldnt", "wouldn't", "www", "x", "x1", "x2", "x3", "xf", "xi", "xj", "xk", "xl", "xn", "xo", "xs", "xt", "xv", "xx", "y", "y2", "yes", "yet", "yj", "yl", "you", "youd", "you'd", "you'll", "your", "youre", "you're", "yours", "yourself", "yourselves", "you've", "yr", "ys", "yt", "z", "zero", "zi", "zz"};
+		HashSet<String> stopWordsSet1 = new HashSet<>(Arrays.asList(stopWords1));
+		HashSet<String> stopWordsSet2 = new HashSet<>(Arrays.asList(stopWords2));
+		if (stopWordsSet1.contains(word.toLowerCase())||stopWordsSet2.contains(word.toLowerCase())){
+			return true;
+		}
+        return false;		
+	}
 };
 class ranker{
 	// calc tf given a url and a word
-	public static double calc_tf(String wrd, String urlLink) {
+	public double calc_tf(String wrd, String urlLink) {
 	    int tf = 0;
 	    double totalWrds = 0;
 	    try {
@@ -338,7 +447,7 @@ class ranker{
 	}
 
 	// function calcualtes tf-idf of a url
-	public static double calc_tfIdf(String urlLink, double df, double tf) {
+	public double calc_tfIdf(String urlLink, double df, double tf) {
 	    return tf * (1 / df);
 	}
 
@@ -432,5 +541,50 @@ class ranker{
 	        urls[i].PageRank = Rmatrix[i][0];
 	    }
 	}
+    // Ranker function
+    // note this function must take all the docs common between all words in query,
+    // but why??
+    // Answer: because each doc related to a word, so for example:
+    // given a query of two words word1 and word2 and a doc related to word1 but not
+    // to word2
+    // so doc has a tf_idf to word1, but has no tf_idf related to word2
+    // (if we assume the tf_idf = 0 ----> this also makes a problem which is we
+    // can't get a tf_idf from a doc doesn't related to a word)
+    public static void Ranker(word[] words, doc[] ds) {
+        for (int i = 0; i < ds.length; i++) {
+            ds[i].Tf_IDF_total = words[0].docs[i].TF_IDF;
+            ds[i].url = words[0].docs[i].url;
+        }
+        // for (int i = 0; i < ds.length; i++) {
+        // System.out.println(ds[i].url);
+        // }
+        // note i use array of docs to attach each url to its data
+        // note if there is more than 1 element in the array it means that the query has
+        // many words then they all must have the same number of docs as they will store
+        // the common docs between them
+        for (int k = 0; k < words[0].docs.length; k++) {// for each url in words[0]
+            for (int i = 1; i < words.length; i++) {// search in all words docs about this url and add all tf_idf and
+                                                    // store it in a doc
+                for (int j = 0; j < words[i].docs.length; j++) {// iterate over the docs in words[i]
+                    if (words[0].docs[k].url.equals(words[i].docs[j].url)) {
+                        ds[k].Tf_IDF_total += words[i].docs[j].TF_IDF;
+                        break;
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < ds.length; i++) {
+            for (int j = 0; j < ds.length - 1; j++) {
+                if ((ds[j + 1].Tf_IDF_total + ds[j + 1].PageRank) > (ds[j].Tf_IDF_total + ds[j].PageRank)) {
+                    doc temp = ds[j + 1];
+                    ds[j + 1] = ds[j];
+                    ds[j] = temp;
+                }
+            }
+        }
+        // for (int i = 0; i < ds.length; i++) {
+        // System.out.println(ds[i].url);
+        // }
+        return;
+    }
 };
-
