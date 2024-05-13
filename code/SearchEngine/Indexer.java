@@ -3,6 +3,7 @@ import java.nio.file.Files;
 import org.jsoup.Jsoup;
 import java.util.TreeMap;
 //import java.util.TreeSet;
+import java.io.FileReader;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -34,28 +35,46 @@ public class Indexer {
 		obj= new mysqlServer();
 		invertedfile = new TreeMap<String,TreeMap<String,Locations>>();
 		Vector<String> urls=new Vector<String>();
-		boolean b = obj.LoadDocuments(urls);
-		if(b) {
+		//boolean b = obj.LoadDocuments(urls);
+		urls = ReadUrls();
+		/*if(b) {
 			for(int i=0;i<urls.size();i++) {
 				indexDocument(urls.get(i));
 				obj.UpdateDocument(urls.get(i), true);
 				System.out.printf("document %d is indexed",i+1);
 			}
+		}*/
+		/*for(int i=0;i<urls.size();i++) {
+			indexDocument(urls.get(i));
+			obj.UpdateDocument(urls.get(i), true);
+			System.out.printf("document %d is indexed",i+1);
 		}
 		insertIntoDatabase();
-		obj.CloseConnection();
-		/*String path = "D://loadedDocument//index3.html";
+		obj.CloseConnection();*/
+		String path = "D://loadedDocument//index3.html";
 		String html = LoadDocument(path);
 		String[] types=new String[8];
 		String[] words = ParseDocument(html,types);
 		for(int i=0;i<words.length;i++) {
 			System.out.println(words[i]);
-		}*/
+		}
 		/*for(int i=0;i<types.length;i++) {
 			if(types[i]!=null) {
 				System.out.println(types[i]);	
 			}
 		}*/
+	}
+	public static Vector<String> ReadUrls(){
+		Vector<String> vec=new Vector<String>();
+        try (BufferedReader reader = new BufferedReader(new FileReader("D://loadedDocument//urls.txt"))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                vec.add(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return vec;
 	}
 	public static String LoadDocument(String filepath) {
 		String content =null;
@@ -205,7 +224,7 @@ public class Indexer {
 class mysqlServer {
 	Connection connection;
 	mysqlServer(){
-		String url ="jdbc:mysql://localhost:3306/mysqlServer";
+		String url ="jdbc:mysql://localhost:3306/searchengine";
 		String username="root";
 		String password="BSA#365#eaif";
 		try {
